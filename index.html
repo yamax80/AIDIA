@@ -764,7 +764,47 @@
       return utf8.includes("\uFFFD") ? new TextDecoder("windows-1251").decode(bytes) : utf8;
     }
 
-    async function fetchDiafilmyHtml(targetUrl) {
+    async function fetchDiafilmyHtml(targetUrl, logFn = console.log) {
+      const debugLog = [];
+      // 1. Запрос через серверную функцию Supabase
+      try {
+        logFn(`📡 [Шаг 1] Запрос к Supabase RPC (admin_proxy_fetch)...`);
+        const rpc = await sbFetch("rpc/admin_proxy_fetch", {
+          method: "POST",
+          body: JSON.stringify({ pass_input: adminPassword, target_url: targetUrl })
+        });
+        if (rpc && rpc.ok) {
+          if (rpc.base64) {
+            const bin = atob(rpc.base64);
+            const arr = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            const decoded = decodeHtmlBytes(arr.buffer);
+            if (!decoded.includes("\uFFFD") && decoded.length > 200) return decoded;
+          }
+          if (rpc.html_text && rpc.html_text.length > 200) return rpc.html_text;
+        }
+        debugLog.push(`Supabase RPC: ${rpc?.error || ('HTTP ' + rpc?.status)} (${rpc?.sqlstate || ''})`);
+      } catch (e) {
+        debugLog.push(`Supabase RPC сбой: ${e.message}`);
+      }
+
+      // 2. Резервные прокси-шлюзы
+      const gateways = [
+        { name: "CodeTabs", url: `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}` },
+        { name: "AllOrigins", url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}` }
+      ];
+      for (const gw of gateways) {
+        try {
+          logFn(`📡 Пробую резервный шлюз ${gw.name}...\nЛог: ${debugLog.join(" | ")}`);
+          const r = await fetch(gw.url);
+          if (r.ok) return decodeHtmlBytes(await r.arrayBuffer());
+          debugLog.push(`${gw.name}: HTTP ${r.status}`);
+        } catch (e) {
+          debugLog.push(`${gw.name}: ${e.message}`);
+        }
+      }
+      throw new Error(`Детальный лог отладки:\n• ${debugLog.join("\n• ")}`);
+    }
       // 1. Пробуем через серверную функцию Supabase (если включена)
       try {
         const rpc = await sbFetch("rpc/admin_proxy_fetch", { method: "POST", body: JSON.stringify({ pass_input: adminPassword, target_url: targetUrl }) });
