@@ -22,6 +22,15 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
+  <!-- НЕЗАВИСИМЫЙ ПЕРЕХВАТЧИК ОШИБОК ДЛЯ ТЕЛЕФОНА -->
+  <div id="globalErrBanner" class="hidden bg-red-900/90 text-white text-xs p-3 font-mono border-b border-red-500"></div>
+  <script>
+    window.addEventListener("error", function(e) {
+      var b = document.getElementById("globalErrBanner");
+      if (b) { b.classList.remove("hidden"); b.innerText = "⚠️ Ошибка скрипта: " + e.message + " (строка " + e.lineno + ")"; }
+    });
+  </script>
+
   <!-- ШАПКА -->
   <header class="sticky top-0 z-30 bg-[#18120e]/95 backdrop-blur border-b border-[#2e231a] px-4 py-3">
     <div class="max-w-6xl mx-auto flex items-center justify-between gap-2">
@@ -69,7 +78,6 @@
     </div>
 
     <div class="max-w-6xl mx-auto px-4 py-6">
-      <!-- ПАНЕЛЬ АДМИНА -->
       <div id="adminBar" class="hidden mb-6 p-4 rounded-2xl bg-[#221a14] border border-[#d99b26]/40 space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <span class="text-xs font-bold uppercase tracking-wider text-[#d99b26]">🛠️ Пульт управления архивом</span>
@@ -81,7 +89,6 @@
         <div id="adminStatusTabs" class="flex flex-wrap gap-1.5 pt-1"></div>
       </div>
 
-      <!-- ФИЛЬТРЫ -->
       <div class="bg-[#201813] border border-[#33271d] rounded-2xl p-3 mb-6">
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
           <div class="sm:col-span-2">
@@ -302,9 +309,9 @@
         <h3 class="font-serif-title text-2xl text-emerald-400">➕ Парсинг диафильма по ссылке</h3>
         <button onclick="closeImportModal()" class="text-[#9e9081] hover:text-white">✕</button>
       </div>
-      <p class="text-xs text-[#9e9081]">Вставьте ссылку с <code>diafilmy.su</code>. Скрипт сам прочитает кириллицу <code>windows-1251</code>, скачает все кадры в 4 потока, сожмет в WebP и загрузит на Hugging Face!</p>
+      <p class="text-xs text-[#9e9081]">Вставьте ссылку с <code>diafilmy.su</code>. Внизу будет выводиться подробный лог каждого шага.</p>
       <input id="importUrlInput" type="url" placeholder="https://diafilmy.su/2076-golubaya-chashka.html" class="w-full bg-[#16110d] border border-[#382b20] rounded-xl px-3.5 py-2.5 text-xs text-[#f3ece2]" />
-      <div id="importLogBox" class="hidden p-3 rounded-xl bg-[#120e0a] border border-[#2e231a] text-xs font-mono text-[#d99b26] whitespace-pre-wrap max-h-48 overflow-y-auto"></div>
+      <div id="importLogBox" class="hidden p-3 rounded-xl bg-[#120e0a] border border-[#2e231a] text-xs font-mono text-[#d99b26] whitespace-pre-wrap max-h-56 overflow-y-auto"></div>
       <div class="flex justify-end gap-2">
         <button onclick="closeImportModal()" class="px-4 py-2 rounded-xl bg-[#2e231a] text-xs">Закрыть</button>
         <button id="btnStartImport" onclick="runImportFromUrl()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">📥 Спарсить и скачать оригиналы</button>
@@ -319,7 +326,7 @@
         <h3 class="font-serif-title text-2xl text-[#d99b26]">🧹 Очистка витрины</h3>
         <button onclick="closeCleanupModal()" class="text-[#9e9081] hover:text-white">✕</button>
       </div>
-      <p class="text-xs text-[#9e9081]">Оставьте галочки ✅ только на тех диафильмах, которые должны остаться на витрине. У остальных очистятся старые записи ИИ, и они перейдут в очередь на новую реставрацию.</p>
+      <p class="text-xs text-[#9e9081]">Оставьте галочки ✅ только на тех диафильмах, которые должны остаться на витрине. У остальных очистятся старые записи ИИ.</p>
       <div class="flex gap-2 text-xs">
         <button onclick="toggleAllCleanupChecks(false)" class="px-2.5 py-1 rounded bg-[#16110d] border border-[#382b20] text-[#cfc4b6]">Снять все</button>
         <button onclick="toggleAllCleanupChecks(true)" class="px-2.5 py-1 rounded bg-[#16110d] border border-[#382b20] text-[#cfc4b6]">Выбрать все</button>
@@ -591,10 +598,8 @@
 
       const rawFrames = await sbFetch(`frames?filmstrip_id=eq.${filmId}&select=*,frame_versions(*)&order=frame_number.asc`);
       currentFrames = isAdmin ? rawFrames : rawFrames.filter(fr => fr.is_active !== false);
-      currentFrameIdx = 0;
-      viewMode = "restored";
-      updatePlayerFrame();
-      renderThumbsGrid();
+      currentFrameIdx = 0; viewMode = "restored";
+      updatePlayerFrame(); renderThumbsGrid();
       if (isAdmin) updateCostEstimate();
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
@@ -631,27 +636,21 @@
       if (info.availableRestored.length > 1) {
         verSel.classList.remove("hidden");
         verSel.innerHTML = info.availableRestored.map(v => `<option value="${v.type}" ${v.type === preferredEngine ? 'selected' : ''}>${v.label}</option>`).join("");
-      } else {
-        verSel.classList.add("hidden");
-      }
+      } else verSel.classList.add("hidden");
 
       const picked = pickBestUrl(fr, viewMode, preferredEngine);
       const mainImg = document.getElementById("mainFrameImg");
       const fsImg = document.getElementById("fsImg");
 
       mainImg.onerror = () => { if (mainImg.src !== info.originalUrl && info.originalUrl) mainImg.src = info.originalUrl; };
-      mainImg.src = picked.url;
-      fsImg.src = picked.url;
-
+      mainImg.src = picked.url; fsImg.src = picked.url;
       document.getElementById("floatingModePill").classList.toggle("hidden", !picked.hasBoth);
 
       const countStr = `${currentFrameIdx + 1} / ${currentFrames.length}`;
       document.getElementById("frameCounterText").innerText = countStr;
       document.getElementById("fsCounter").innerText = countStr;
 
-      if (isAdmin) {
-        document.getElementById("adminCurrentFrameLabel").innerText = `Кадр #${fr.frame_number} (${picked.isRestored ? 'Есть ИИ' : 'Оригинал'})`;
-      }
+      if (isAdmin) document.getElementById("adminCurrentFrameLabel").innerText = `Кадр #${fr.frame_number} (${picked.isRestored ? 'Есть ИИ' : 'Оригинал'})`;
       highlightActiveThumb();
     }
 
@@ -709,8 +708,7 @@
       const res = document.getElementById("nbResSelect").value;
       const unitUsd = (MODEL_PRICING_USD[model] && MODEL_PRICING_USD[model][res]) || 0.015;
       const totalUsd = targets.length * unitUsd;
-      const totalIls = totalUsd * USD_TO_ILS;
-      document.getElementById("costEstimateValue").innerText = `${targets.length} кадр. ≈ $${totalUsd.toFixed(2)} (~₪${totalIls.toFixed(2)})`;
+      document.getElementById("costEstimateValue").innerText = `${targets.length} кадр. ≈ $${totalUsd.toFixed(2)} (~₪${(totalUsd * USD_TO_ILS).toFixed(2)})`;
     }
 
     function openFullscreenModal() {
@@ -735,20 +733,14 @@
     attachSwipe("mainFrameTouchArea");
     attachSwipe("fsTouchArea");
 
-    // Удержание экрана телефона включенным во время долгих операций
     let wakeLockObj = null;
     async function keepScreenAwake(enable) {
       try {
-        if (enable && "wakeLock" in navigator && !wakeLockObj) {
-          wakeLockObj = await navigator.wakeLock.request("screen");
-        } else if (!enable && wakeLockObj) {
-          await wakeLockObj.release();
-          wakeLockObj = null;
-        }
+        if (enable && "wakeLock" in navigator && !wakeLockObj) wakeLockObj = await navigator.wakeLock.request("screen");
+        else if (!enable && wakeLockObj) { await wakeLockObj.release(); wakeLockObj = null; }
       } catch (e) {}
     }
 
-    // ПАРСИНГ И СКАЧИВАНИЕ С DIAFILMY.SU (С АВТОДЕКОДИРОВАНИЕМ WINDOWS-1251 И КАРТИНКАМИ ЧЕРЕЗ WSRV CDN)
     function openImportModal() {
       document.getElementById("importUrlInput").value = "";
       document.getElementById("importLogBox").classList.add("hidden");
@@ -764,14 +756,12 @@
       return utf8.includes("\uFFFD") ? new TextDecoder("windows-1251").decode(bytes) : utf8;
     }
 
-    async function fetchDiafilmyHtml(targetUrl, logFn = console.log) {
+    async function fetchDiafilmyHtml(targetUrl, logFn) {
       const debugLog = [];
-      // 1. Запрос через серверную функцию Supabase
       try {
-        logFn(`📡 [Шаг 1] Запрос к Supabase RPC (admin_proxy_fetch)...`);
+        logFn("📡 [Шаг 1] Запрос к Supabase RPC (admin_proxy_fetch)...");
         const rpc = await sbFetch("rpc/admin_proxy_fetch", {
-          method: "POST",
-          body: JSON.stringify({ pass_input: adminPassword, target_url: targetUrl })
+          method: "POST", body: JSON.stringify({ pass_input: adminPassword, target_url: targetUrl })
         });
         if (rpc && rpc.ok) {
           if (rpc.base64) {
@@ -783,60 +773,29 @@
           }
           if (rpc.html_text && rpc.html_text.length > 200) return rpc.html_text;
         }
-        debugLog.push(`Supabase RPC: ${rpc?.error || ('HTTP ' + rpc?.status)} (${rpc?.sqlstate || ''})`);
-      } catch (e) {
-        debugLog.push(`Supabase RPC сбой: ${e.message}`);
-      }
+        debugLog.push(`Supabase RPC: ${rpc?.error || ('HTTP ' + rpc?.status)} ${rpc?.sqlstate || ''}`);
+      } catch (e) { debugLog.push(`Supabase RPC: ${e.message}`); }
 
-      // 2. Резервные прокси-шлюзы
       const gateways = [
         { name: "CodeTabs", url: `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}` },
         { name: "AllOrigins", url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}` }
       ];
       for (const gw of gateways) {
         try {
-          logFn(`📡 Пробую резервный шлюз ${gw.name}...\nЛог: ${debugLog.join(" | ")}`);
+          logFn(`📡 Пробую шлюз ${gw.name}...\n(${debugLog.join(" | ")})`);
           const r = await fetch(gw.url);
           if (r.ok) return decodeHtmlBytes(await r.arrayBuffer());
           debugLog.push(`${gw.name}: HTTP ${r.status}`);
-        } catch (e) {
-          debugLog.push(`${gw.name}: ${e.message}`);
-        }
+        } catch (e) { debugLog.push(`${gw.name}: ${e.message}`); }
       }
-      throw new Error(`Детальный лог отладки:\n• ${debugLog.join("\n• ")}`);
-    }
-      // 1. Пробуем через серверную функцию Supabase (если включена)
-      try {
-        const rpc = await sbFetch("rpc/admin_proxy_fetch", { method: "POST", body: JSON.stringify({ pass_input: adminPassword, target_url: targetUrl }) });
-        if (rpc && rpc.ok && rpc.base64) {
-          const bin = atob(rpc.base64);
-          const arr = new Uint8Array(bin.length);
-          for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-          return decodeHtmlBytes(arr.buffer);
-        }
-      } catch (e) {}
-
-      // 2. Пробуем цепочку открытых прокси-шлюзов
-      const gateways = [
-        `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-        `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`
-      ];
-      for (const gw of gateways) {
-        try {
-          const r = await fetch(gw);
-          if (r.ok) return decodeHtmlBytes(await r.arrayBuffer());
-        } catch (e) {}
-      }
-      throw new Error("Не удалось прочитать страницу diafilmy.su (выполните SQL-скрипт Шага 1 в Supabase)");
+      throw new Error(`Лог отладки:\n• ${debugLog.join("\n• ")}`);
     }
 
     async function fetchImageAsWebpBlob(imgUrl) {
-      // Используем глобальный облачный CDN wsrv.nl — он сам забирает картинку с diafilmy.su и сразу отдает сжатый WebP!
       const wsrvUrl = `https://wsrv.nl/?url=${encodeURIComponent(imgUrl)}&output=webp&q=90`;
       const r = await fetch(wsrvUrl);
       if (r.ok) return await r.blob();
-      throw new Error(`Не удалось скачать кадр ${imgUrl}`);
+      throw new Error(`Ошибка скачивания кадра ${imgUrl}`);
     }
 
     async function parseAndImportDiafilmUrl(sourceUrl, existingFilmId = null, logEl = null) {
@@ -845,7 +804,6 @@
 
       await keepScreenAwake(true);
       try {
-        log(`🔍 Читаю страницу ${sourceUrl}...`);
         const html = await fetchDiafilmyHtml(sourceUrl, log);
         const doc = new DOMParser().parseFromString(html, "text/html");
 
@@ -905,7 +863,6 @@
         const hfFiles = new Array(uniqueImgs.length);
         let doneCount = 0;
 
-        // Скачиваем параллельно в 4 потока для высокой скорости на телефоне
         const workers = Array.from({ length: 4 }, async (_, wIdx) => {
           for (let i = wIdx; i < uniqueImgs.length; i += 4) {
             const webpBlob = await fetchImageAsWebpBlob(uniqueImgs[i]);
@@ -925,7 +882,7 @@
           files: hfFiles.map(f => ({ path: f.path, content: f.content }))
         });
 
-        log(`🔗 Синхронизация кадров с базой Supabase...`);
+        log(`🔗 Запись кадров в базу Supabase...`);
         const rows = hfFiles.map(f => ({
           filmstrip_id: filmId, frame_number: f.frameNum, sort_order: f.frameNum,
           original_url: `https://huggingface.co/datasets/${HF_REPO}/resolve/main/${f.path}`, is_active: true
@@ -937,9 +894,7 @@
         log(`✅ ГОТОВО! "${title}" (${hfFiles.length} кадров) загружен!`);
         await reloadCatalogData();
         return filmId;
-      } finally {
-        await keepScreenAwake(false);
-      }
+      } finally { await keepScreenAwake(false); }
     }
 
     async function runImportFromUrl() {
@@ -965,7 +920,6 @@
       } catch (e) { logEl.classList.remove("hidden"); logEl.innerText = `❌ ${e.message}`; }
     }
 
-    // ОЧИСТКА ВИТРИНЫ
     function openCleanupModal() {
       const showcaseFilms = allFilms.filter(f => isPublicRestoredStatus(f.status));
       document.getElementById("cleanupList").innerHTML = showcaseFilms.map(f => `
@@ -1014,7 +968,6 @@
       } catch (e) { alert("Ошибка: " + e.message); }
     }
 
-    // УПРАВЛЕНИЕ КАДРАМИ И ЯДРО NANOBANANA
     async function setCurrentFrameAsCover() {
       if (!isAdmin || !currentFrames.length || !currentFilm) return;
       const fr = currentFrames[currentFrameIdx];
