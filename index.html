@@ -22,12 +22,11 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <!-- НЕЗАВИСИМЫЙ ПЕРЕХВАТЧИК ОШИБОК ДЛЯ ТЕЛЕФОНА -->
   <div id="globalErrBanner" class="hidden bg-red-900/90 text-white text-xs p-3 font-mono border-b border-red-500"></div>
   <script>
     window.addEventListener("error", function(e) {
       var b = document.getElementById("globalErrBanner");
-      if (b) { b.classList.remove("hidden"); b.innerText = "⚠️ Ошибка скрипта: " + e.message + " (строка " + e.lineno + ")"; }
+      if (b) { b.classList.remove("hidden"); b.innerText = "⚠️ Ошибка: " + e.message + " (строка " + e.lineno + ")"; }
     });
   </script>
 
@@ -135,7 +134,8 @@
     </div>
 
     <div id="projectorBox" class="relative rounded-2xl overflow-hidden border border-[#3b2d22] bg-[#0a0806] shadow-2xl select-none">
-      <div id="floatingModePill" class="absolute top-3 left-1/2 -translate-x-1/2 z-20 inline-flex rounded-full bg-[#1a1410]/85 backdrop-blur-md p-1 border border-[#4a3728] shadow-lg">
+      <!-- Переключатель Реставрация / Оригинал (Теперь никогда не пропадает при переключении!) -->
+      <div id="floatingModePill" class="absolute top-3 left-1/2 -translate-x-1/2 z-20 inline-flex rounded-full bg-[#1a1410]/90 backdrop-blur-md p-1 border border-[#4a3728] shadow-lg">
         <button id="pillRestored" onclick="setViewMode('restored')" class="px-4 py-1 rounded-full text-xs font-semibold bg-[#d99b26] text-[#18120e] transition">Реставрация</button>
         <button id="pillOriginal" onclick="setViewMode('original')" class="px-4 py-1 rounded-full text-xs font-medium text-[#cfc4b6] hover:text-white transition">Оригинал</button>
       </div>
@@ -163,26 +163,36 @@
 
     <!-- АДМИН-БЛОК ПЛЕЕРА -->
     <div id="adminPlayerControls" class="hidden mt-4 space-y-4">
+      <!-- Действия с текущим открытым кадром -->
       <div class="p-3 rounded-2xl bg-[#221a14] border border-[#d99b26]/40 flex flex-wrap items-center justify-between gap-2">
-        <span id="adminCurrentFrameLabel" class="text-xs font-semibold text-[#d99b26]">Кадр #0</span>
+        <span id="adminCurrentFrameLabel" class="text-xs font-semibold text-[#d99b26]">Кадр №1</span>
         <div class="flex flex-wrap gap-2">
-          <button onclick="downloadOriginalsForCurrentFilm()" class="px-3 py-1.5 rounded-xl bg-sky-700/30 border border-sky-500/40 text-sky-300 text-xs font-medium hover:bg-sky-700/50">📥 Скачать с diafilmy.su</button>
-          <button onclick="setCurrentFrameAsCover()" class="px-3 py-1.5 rounded-xl bg-[#d99b26]/20 border border-[#d99b26]/50 text-[#f3c668] text-xs font-medium hover:bg-[#d99b26]/30">🖼️ Сделать обложкой</button>
-          <button onclick="restoreSingleCurrentFrame()" class="px-3 py-1.5 rounded-xl bg-emerald-700/30 border border-emerald-500/40 text-emerald-300 text-xs font-medium hover:bg-emerald-700/50">✨ Переделать этот кадр (ИИ)</button>
-          <button onclick="toggleCurrentFrameActive()" class="px-3 py-1.5 rounded-xl bg-[#2e231a] border border-[#453425] text-xs text-[#cfc4b6]">👁️ Скрыть/показать</button>
+          <button id="btnRestoreSingle" onclick="restoreSingleCurrentFrame()" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow">
+            ✨ Реставрировать этот кадр (ИИ)
+          </button>
+          <button onclick="setCurrentFrameAsCover()" class="px-3 py-1.5 rounded-xl bg-[#d99b26]/20 border border-[#d99b26]/50 text-[#f3c668] text-xs font-medium hover:bg-[#d99b26]/30">
+            🖼️ Сделать обложкой
+          </button>
+          <button onclick="toggleCurrentFrameActive()" class="px-3 py-1.5 rounded-xl bg-[#2e231a] border border-[#453425] text-xs text-[#cfc4b6]">
+            👁️ Скрыть/показать
+          </button>
+          <button onclick="downloadOriginalsForCurrentFilm()" class="px-3 py-1.5 rounded-xl bg-sky-700/30 border border-sky-500/40 text-sky-300 text-xs font-medium">
+            📥 Перекачать с diafilmy.su
+          </button>
         </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-        <div class="md:col-span-7 p-4 rounded-2xl bg-[#221a14] border border-emerald-600/30 space-y-3">
+        <!-- ПУЛЬТ NANOBANANA (С РУЧНЫМ И АВТО-ПРОМПТОМ) -->
+        <div class="md:col-span-8 p-4 rounded-2xl bg-[#221a14] border border-emerald-600/30 space-y-3">
           <div class="flex items-center justify-between">
             <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">🍌 Пульт реставрации NanoBanana</h3>
-            <button onclick="resetCurrentFilmRestorations()" class="text-[11px] text-red-400 hover:underline">🧹 Сбросить старую реставрацию</button>
+            <button onclick="resetCurrentFilmRestorations()" class="text-[11px] text-red-400 hover:underline">🧹 Сбросить все ИИ-кадры фильма</button>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div class="sm:col-span-2">
-              <label class="text-[11px] text-[#9e9081]">Модель NanoBanana:</label>
+              <label class="text-[11px] text-[#9e9081]">Версия модели NanoBanana:</label>
               <select id="nbModelSelect" onchange="updateCostEstimate()" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs text-[#f3ece2]">
                 <option value="gemini-3.1-flash-lite-image">NanoBanana 2 Lite (3.1 Flash-Lite) — Быстрая</option>
                 <option value="gemini-3.1-flash-image">NanoBanana 2 Flash (3.1 Flash) — Стандарт</option>
@@ -198,10 +208,11 @@
             </div>
           </div>
 
+          <!-- Конструктор стиля -->
           <div class="grid grid-cols-3 gap-2">
             <div>
-              <label class="text-[11px] text-[#9e9081]">Техника:</label>
-              <select id="nbMediumSelect" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-xs">
+              <label class="text-[11px] text-[#9e9081]">Техника рисунка:</label>
+              <select id="nbMediumSelect" onchange="refreshPromptPreview()" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-xs">
                 <option value="Gouache">Гуашь СССР</option>
                 <option value="Watercolor">Акварель</option>
                 <option value="Puppet">Кукольный 3D</option>
@@ -212,7 +223,7 @@
             </div>
             <div>
               <label class="text-[11px] text-[#9e9081]">Палитра:</label>
-              <select id="nbSatSelect" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-xs">
+              <select id="nbSatSelect" onchange="refreshPromptPreview()" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-xs">
                 <option value="Vibrant">Сочная чистая</option>
                 <option value="Natural">Естественная</option>
                 <option value="Pastel">Мягкая пастель</option>
@@ -225,63 +236,93 @@
             </div>
           </div>
 
+          <!-- НАСТРОЙКА ПРОМПТА (АВТО ИЛИ ПОЛНОСТЬЮ РУЧНОЙ ПРОМПТ) -->
+          <div class="p-3 rounded-xl bg-[#16110d] border border-[#382b20] space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label class="text-xs font-semibold text-[#d99b26]">✍️ Режим промпта (инструкции для ИИ):</label>
+              <select id="nbPromptMode" onchange="onPromptModeChange()" class="bg-[#221a14] border border-[#453425] rounded-lg px-2.5 py-1 text-xs text-[#f3ece2]">
+                <option value="auto">🎨 Авто-стиль + мои детали</option>
+                <option value="custom">✍️ Полностью ручной промпт</option>
+              </select>
+            </div>
+            <div id="autoPromptBox">
+              <input id="nbExtraDetails" type="text" oninput="refreshPromptPreview()" placeholder="Доп. детали для кадра или фильма (напр.: голубая чашка, яркое солнце, четкие буквы)..." class="w-full bg-[#221a14] border border-[#382b20] rounded-lg px-3 py-2 text-xs text-[#f3ece2]" />
+            </div>
+            <div id="customPromptBox" class="hidden">
+              <textarea id="nbFullCustomPrompt" rows="4" class="w-full bg-[#221a14] border border-[#d99b26]/60 rounded-lg px-3 py-2 text-xs text-[#f3ece2] font-mono" placeholder="Введите ваш полный ручной промпт..."></textarea>
+            </div>
+          </div>
+
+          <!-- Выбор кадров (ВСЕ НОМЕРА С 1 ПО 58, КАК НА СЧЕТЧИКЕ!) -->
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
-              <label class="text-[11px] text-[#9e9081]">Выбор кадров:</label>
+              <label class="text-[11px] text-[#9e9081]">Какие кадры обрабатывать:</label>
               <select id="nbTargetMode" onchange="onTargetModeChange()" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-xs font-semibold text-[#d99b26]">
-                <option value="overwrite_all">🔄 Все кадры (заново)</option>
-                <option value="only_missing">⏭️ Только пустые</option>
-                <option value="custom_range">🔢 Указать номера</option>
+                <option value="only_missing">⏭️ Только необработанные (продолжить)</option>
+                <option value="overwrite_all">🔄 Все кадры (переделать с 1 до конца)</option>
+                <option value="custom_range">🔢 Указать номера кадров (1..N)</option>
               </select>
             </div>
             <div id="customRangeBox" class="hidden">
-              <label class="text-[11px] text-[#9e9081]">Номера (1-5, 8):</label>
-              <input id="nbFramesCustom" type="text" value="1-5" oninput="updateCostEstimate()" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs" />
+              <label class="text-[11px] text-[#9e9081]">Номера кадров (как на счетчике, с 1):</label>
+              <input id="nbFramesCustom" type="text" value="6" oninput="updateCostEstimate()" placeholder="Напр: 6 или 1-5, 8" class="w-full mt-1 bg-[#16110d] border border-[#d99b26] rounded-lg px-2.5 py-1.5 text-xs" />
             </div>
             <div>
-              <label class="text-[11px] text-[#9e9081]">Эталон стиля (№):</label>
-              <input id="nbRefFrame" type="text" placeholder="Нет" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs" />
+              <label class="text-[11px] text-[#9e9081]">Эталон стиля (кадр № с 1):</label>
+              <input id="nbRefFrame" type="text" placeholder="Нет (или №, напр. 7)" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs" />
             </div>
           </div>
 
           <div class="p-2.5 rounded-xl bg-[#16110d] border border-[#382b20] flex items-center justify-between text-xs">
-            <span class="text-[#9e9081]">💰 Прогноз стоимости:</span>
+            <span class="text-[#9e9081]">💰 Прогноз стоимости выбранных кадров:</span>
             <span id="costEstimateValue" class="font-semibold text-[#d99b26]">—</span>
           </div>
 
-          <div id="aiLogBox" class="hidden p-2.5 rounded-xl bg-[#120e0a] border border-[#2e231a] text-xs font-mono text-[#d99b26] whitespace-pre-wrap max-h-40 overflow-y-auto"></div>
-          <button id="btnBatchRestore" onclick="runBatchRestoration()" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold shadow-lg">🚀 Запустить реставрацию NanoBanana</button>
+          <div id="aiLogBox" class="hidden p-2.5 rounded-xl bg-[#120e0a] border border-[#2e231a] text-xs font-mono text-[#d99b26] whitespace-pre-wrap max-h-44 overflow-y-auto"></div>
+
+          <div class="flex gap-2">
+            <button id="btnBatchRestore" onclick="runBatchRestoration()" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold shadow-lg">
+              🚀 Запустить пакетную реставрацию
+            </button>
+            <button id="btnStopBatch" onclick="stopBatchRequested=true" class="hidden px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold">
+              ⏹️ Стоп (сохранить готовые)
+            </button>
+          </div>
         </div>
 
-        <div class="md:col-span-5 p-4 rounded-2xl bg-[#221a14] border border-[#453425] space-y-2.5 flex flex-col justify-between">
-          <div class="space-y-2.5">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-[#d99b26]">📋 Карточка и промпт</h3>
+        <!-- Правая колонка: Карточка диафильма в БД -->
+        <div class="md:col-span-4 p-4 rounded-2xl bg-[#221a14] border border-[#453425] space-y-3 flex flex-col justify-between">
+          <div class="space-y-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-[#d99b26]">📋 Карточка в базе данных</h3>
             <div>
               <label class="text-[11px] text-[#9e9081]">Статус диафильма:</label>
-              <select id="editFilmStatus" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs">
-                <option value="restored_paid">✅ restored_paid (На витрине)</option>
+              <select id="editFilmStatus" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-2 text-xs font-semibold">
+                <option value="restored_paid">✅ restored_paid (Опубликован на витрине)</option>
                 <option value="waiting_approval">⏳ waiting_approval (На проверке)</option>
                 <option value="downloaded">📥 downloaded (Скачан оригинал)</option>
                 <option value="pending">💤 pending (Ждет скачивания)</option>
               </select>
             </div>
-            <div class="grid grid-cols-2 gap-2">
-              <input id="editFilmArtist" type="text" placeholder="Художник" class="bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs" />
-              <input id="editFilmYear" type="number" placeholder="Год" class="bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs" />
+            <div>
+              <label class="text-[11px] text-[#9e9081]">Художник:</label>
+              <input id="editFilmArtist" type="text" placeholder="Художник" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs" />
             </div>
             <div>
-              <label class="text-[11px] text-[#9e9081]">Доп. сюжет/промпт:</label>
-              <textarea id="editFilmPrompt" rows="3" placeholder="Детали сюжета или стиля..." class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs"></textarea>
+              <label class="text-[11px] text-[#9e9081]">Год выпуска:</label>
+              <input id="editFilmYear" type="number" placeholder="Год" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs" />
             </div>
           </div>
           <div class="pt-2 space-y-2">
-            <a id="editFilmOrigUrl" href="#" target="_blank" class="block text-xs text-[#d99b26] hover:underline truncate">🔗 Открыть на diafilmy.su</a>
-            <button onclick="saveFilmMeta()" class="w-full py-2 rounded-xl bg-[#d99b26] hover:bg-[#c58a1e] text-[#18120e] text-xs font-bold">💾 Сохранить карточку в БД</button>
+            <a id="editFilmOrigUrl" href="#" target="_blank" class="block text-xs text-[#d99b26] hover:underline truncate">🔗 Открыть источник на diafilmy.su</a>
+            <button onclick="saveFilmMeta()" class="w-full py-2.5 rounded-xl bg-[#d99b26] hover:bg-[#c58a1e] text-[#18120e] text-xs font-bold">
+              💾 Сохранить карточку в БД
+            </button>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- СЕТКА МИНИАТЮР ПО 6 В РЯД (НУМЕРАЦИЯ С 1 ДО 58 КАК НА СЧЕТЧИКЕ!) -->
     <div id="thumbsGrid" class="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-5"></div>
   </section>
 
@@ -289,7 +330,7 @@
   <div id="fullscreenModal" class="hidden fixed inset-0 z-50 bg-black flex flex-col justify-between select-none">
     <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent z-10">
       <span id="fsCounter" class="text-xs font-mono text-[#cfc4b6]">1 / 1</span>
-      <div class="inline-flex rounded-full bg-[#1a1410]/90 p-0.5 border border-[#4a3728]">
+      <div id="fsModePill" class="inline-flex rounded-full bg-[#1a1410]/90 p-0.5 border border-[#4a3728]">
         <button id="fsPillRestored" onclick="setViewMode('restored')" class="px-3 py-1 rounded-full text-xs font-semibold bg-[#d99b26] text-[#18120e]">Реставрация</button>
         <button id="fsPillOriginal" onclick="setViewMode('original')" class="px-3 py-1 rounded-full text-xs text-[#cfc4b6]">Оригинал</button>
       </div>
@@ -309,7 +350,6 @@
         <h3 class="font-serif-title text-2xl text-emerald-400">➕ Парсинг диафильма по ссылке</h3>
         <button onclick="closeImportModal()" class="text-[#9e9081] hover:text-white">✕</button>
       </div>
-      <p class="text-xs text-[#9e9081]">Вставьте ссылку с <code>diafilmy.su</code>. Внизу будет выводиться подробный лог каждого шага.</p>
       <input id="importUrlInput" type="url" placeholder="https://diafilmy.su/2076-golubaya-chashka.html" class="w-full bg-[#16110d] border border-[#382b20] rounded-xl px-3.5 py-2.5 text-xs text-[#f3ece2]" />
       <div id="importLogBox" class="hidden p-3 rounded-xl bg-[#120e0a] border border-[#2e231a] text-xs font-mono text-[#d99b26] whitespace-pre-wrap max-h-56 overflow-y-auto"></div>
       <div class="flex justify-end gap-2">
@@ -383,7 +423,7 @@
     let adminSecrets = { hf_token: "", gcp_credentials: "" };
     let adminStatusFilter = "PUBLIC";
     let allFilms = [], filmStatsMap = {}, currentFilm = null, currentFrames = [], currentFrameIdx = 0;
-    let viewMode = "restored", preferredEngine = "auto";
+    let viewMode = "restored", preferredEngine = "auto", stopBatchRequested = false;
 
     async function sbFetch(path, options = {}) {
       const headers = { "apikey": PUBLIC_KEY, "Content-Type": "application/json", ...(options.headers || {}) };
@@ -475,11 +515,15 @@
       return { originalUrl, availableRestored };
     }
 
+    // ИСПРАВЛЕНО: hasBoth теперь всегда true, если у кадра есть и оригинал, и реставрация (даже когда включен просмотр Оригинала!)
     function pickBestUrl(frame, mode = "restored", engine = "auto") {
       const { originalUrl, availableRestored } = getFrameVersionsInfo(frame);
-      if (mode === "original" || availableRestored.length === 0) return { url: originalUrl, isRestored: false, hasBoth: false };
       const chosen = availableRestored.find(v => v.type === engine) || availableRestored[0];
-      return { url: chosen.url, isRestored: true, hasBoth: Boolean(originalUrl && chosen.url && originalUrl !== chosen.url) };
+      const hasBoth = Boolean(originalUrl && chosen && chosen.url && originalUrl !== chosen.url);
+      if (mode === "original" || !chosen) {
+        return { url: originalUrl, isRestored: Boolean(chosen), hasBoth };
+      }
+      return { url: chosen.url, isRestored: true, hasBoth };
     }
 
     async function initApp() {
@@ -592,9 +636,10 @@
         document.getElementById("editFilmStatus").value = currentFilm.status || "pending";
         document.getElementById("editFilmArtist").value = currentFilm.artist || "";
         document.getElementById("editFilmYear").value = currentFilm.year || "";
-        document.getElementById("editFilmPrompt").value = currentFilm.custom_prompt || "";
+        document.getElementById("nbExtraDetails").value = currentFilm.custom_prompt || "";
         document.getElementById("editFilmOrigUrl").href = currentFilm.original_url || "#";
         document.getElementById("aiLogBox").classList.add("hidden");
+        refreshPromptPreview();
       }
 
       const rawFrames = await sbFetch(`frames?filmstrip_id=eq.${filmId}&select=*,frame_versions(*)&order=frame_number.asc`);
@@ -626,11 +671,12 @@
     function updatePlayerFrame() {
       if (!currentFrames.length) {
         document.getElementById("mainFrameImg").src = "";
-        document.getElementById("frameCounterText").innerText = "Нет кадров (нажмите '📥 Скачать с diafilmy.su')";
+        document.getElementById("frameCounterText").innerText = "Нет кадров (нажмите '📥 Перекачать с diafilmy.su')";
         document.getElementById("floatingModePill").classList.add("hidden");
         return;
       }
       const fr = currentFrames[currentFrameIdx];
+      const humanNum = currentFrameIdx + 1; // ЕДИНЫЙ НОМЕР КАДРА С 1 ДО 58!
       const info = getFrameVersionsInfo(fr);
 
       const verSel = document.getElementById("availableVersionSelect");
@@ -646,27 +692,34 @@
       mainImg.onerror = () => { if (mainImg.src !== info.originalUrl && info.originalUrl) mainImg.src = info.originalUrl; };
       mainImg.src = picked.url; fsImg.src = picked.url;
       document.getElementById("floatingModePill").classList.toggle("hidden", !picked.hasBoth);
+      document.getElementById("fsModePill").classList.toggle("hidden", !picked.hasBoth);
 
-      const countStr = `${currentFrameIdx + 1} / ${currentFrames.length}`;
+      const countStr = `${humanNum} / ${currentFrames.length}`;
       document.getElementById("frameCounterText").innerText = countStr;
       document.getElementById("fsCounter").innerText = countStr;
 
-      if (isAdmin) document.getElementById("adminCurrentFrameLabel").innerText = `Кадр #${fr.frame_number} (${picked.isRestored ? 'Есть ИИ' : 'Оригинал'})`;
+      if (isAdmin) {
+        document.getElementById("adminCurrentFrameLabel").innerText = `Кадр №${humanNum} из ${currentFrames.length} (${picked.isRestored ? '✅ Есть ИИ' : '📜 Только оригинал'})`;
+        document.getElementById("btnRestoreSingle").innerText = `✨ Реставрировать кадр №${humanNum} (ИИ)`;
+      }
       highlightActiveThumb();
     }
 
     function prevFrame() { if (currentFrameIdx > 0) { currentFrameIdx--; updatePlayerFrame(); } }
     function nextFrame() { if (currentFrameIdx < currentFrames.length - 1) { currentFrameIdx++; updatePlayerFrame(); } }
 
+    // Миниатюры с единой нумерацией 1..58 и зеленой точкой на готовых ИИ-кадрах
     function renderThumbsGrid() {
       document.getElementById("thumbsGrid").innerHTML = currentFrames.map((fr, idx) => {
+        const humanNum = idx + 1;
         const picked = pickBestUrl(fr, "restored", "auto");
         const origUrl = getFrameVersionsInfo(fr).originalUrl;
         return `
           <div id="thumb_${idx}" onclick="currentFrameIdx=${idx}; updatePlayerFrame();"
             class="frame-aspect rounded-xl overflow-hidden border-2 cursor-pointer transition relative ${fr.is_active === false ? 'opacity-35' : ''}">
             <img src="${picked.url}" loading="lazy" class="w-full h-full object-cover" onerror="if(this.src!=='${origUrl}')this.src='${origUrl}'" />
-            <span class="absolute bottom-1 right-1 px-1.5 py-0.2 rounded bg-black/75 text-[10px] font-mono text-[#cfc4b6]">#${fr.frame_number}</span>
+            ${picked.isRestored ? `<span class="absolute top-1 left-1 w-2 h-2 rounded-full bg-emerald-400 shadow"></span>` : ``}
+            <span class="absolute bottom-1 right-1 px-1.5 py-0.2 rounded bg-black/80 text-[10px] font-mono text-[#f3ece2]">№${humanNum}</span>
           </div>`;
       }).join("");
       highlightActiveThumb();
@@ -682,14 +735,17 @@
     function onTargetModeChange() {
       const m = document.getElementById("nbTargetMode").value;
       document.getElementById("customRangeBox").classList.toggle("hidden", m !== "custom_range");
+      if (m === "custom_range") document.getElementById("nbFramesCustom").value = String(currentFrameIdx + 1);
       updateCostEstimate();
     }
 
+    // ЕДИНАЯ ЧЕЛОВЕЧЕСКАЯ НУМЕРАЦИЯ С 1 ДО 58 ПРИ ВЫБОРЕ КАДРОВ!
     function getTargetFramesForBatch() {
-      const activeFrames = currentFrames.filter(f => f.is_active !== false);
       const mode = document.getElementById("nbTargetMode").value;
-      if (mode === "overwrite_all") return activeFrames;
-      if (mode === "only_missing") return activeFrames.filter(fr => getFrameVersionsInfo(fr).availableRestored.length === 0);
+      const indexed = currentFrames.map((fr, idx) => ({ fr, humanNum: idx + 1 })).filter(x => x.fr.is_active !== false);
+
+      if (mode === "overwrite_all") return indexed;
+      if (mode === "only_missing") return indexed.filter(x => getFrameVersionsInfo(x.fr).availableRestored.length === 0);
 
       const rangeStr = document.getElementById("nbFramesCustom").value.trim();
       const nums = new Set();
@@ -700,7 +756,7 @@
           for (let i = s; i <= e; i++) nums.add(i);
         } else if (!isNaN(parseInt(p))) nums.add(parseInt(p));
       });
-      return activeFrames.filter(f => nums.has(f.frame_number));
+      return indexed.filter(x => nums.has(x.humanNum));
     }
 
     function updateCostEstimate() {
@@ -760,7 +816,7 @@
     async function fetchDiafilmyHtml(targetUrl, logFn) {
       const debugLog = [];
       try {
-        logFn("📡 [Шаг 1] Запрос к Supabase RPC (admin_proxy_fetch)...");
+        logFn("📡 Запрос страницы через Supabase RPC...");
         const rpc = await sbFetch("rpc/admin_proxy_fetch", {
           method: "POST", body: JSON.stringify({ pass_input: adminPassword, target_url: targetUrl })
         });
@@ -774,22 +830,9 @@
           }
           if (rpc.html_text && rpc.html_text.length > 200) return rpc.html_text;
         }
-        debugLog.push(`Supabase RPC: ${rpc?.error || ('HTTP ' + rpc?.status)} ${rpc?.sqlstate || ''}`);
+        debugLog.push(`Supabase RPC: ${rpc?.error || ('HTTP ' + rpc?.status)}`);
       } catch (e) { debugLog.push(`Supabase RPC: ${e.message}`); }
-
-      const gateways = [
-        { name: "CodeTabs", url: `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(targetUrl)}` },
-        { name: "AllOrigins", url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}` }
-      ];
-      for (const gw of gateways) {
-        try {
-          logFn(`📡 Пробую шлюз ${gw.name}...\n(${debugLog.join(" | ")})`);
-          const r = await fetch(gw.url);
-          if (r.ok) return decodeHtmlBytes(await r.arrayBuffer());
-          debugLog.push(`${gw.name}: HTTP ${r.status}`);
-        } catch (e) { debugLog.push(`${gw.name}: ${e.message}`); }
-      }
-      throw new Error(`Лог отладки:\n• ${debugLog.join("\n• ")}`);
+      throw new Error(`Лог:\n• ${debugLog.join("\n• ")}`);
     }
 
     async function fetchImageAsWebpBlob(imgUrl) {
@@ -977,7 +1020,7 @@
       try {
         await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ extra_data: newExtra }) });
         currentFilm.extra_data = newExtra; filmStatsMap[currentFilm.id] = { coverUrl: picked.url };
-        renderCatalog(); alert(`✅ Кадр #${fr.frame_number} сделан обложкой!`);
+        renderCatalog(); alert(`✅ Кадр №${currentFrameIdx + 1} сделан обложкой!`);
       } catch (e) { alert("Ошибка: " + e.message); }
     }
 
@@ -997,7 +1040,7 @@
         status: document.getElementById("editFilmStatus").value,
         artist: document.getElementById("editFilmArtist").value.trim() || null,
         year: parseInt(document.getElementById("editFilmYear").value) || null,
-        custom_prompt: document.getElementById("editFilmPrompt").value.trim() || null
+        custom_prompt: document.getElementById("nbExtraDetails").value.trim() || null
       };
       try {
         await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify(payload) });
@@ -1006,27 +1049,11 @@
       } catch (e) { alert("Ошибка: " + e.message); }
     }
 
-    async function getVertexAccessToken(saJsonStr) {
-      const sa = JSON.parse(saJsonStr);
-      const pem = sa.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s+/g, "");
-      const bin = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
-      const key = await crypto.subtle.importKey("pkcs8", bin.buffer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
-      const b64u = (s) => btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-      const now = Math.floor(Date.now() / 1000);
-      const hdr = b64u(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-      const clm = b64u(JSON.stringify({ iss: sa.client_email, scope: "https://www.googleapis.com/auth/cloud-platform", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 }));
-      const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(`${hdr}.${clm}`));
-      const jwt = `${hdr}.${clm}.${b64u(String.fromCharCode(...new Uint8Array(sig)))}`;
-      const res = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}` });
-      const d = await res.json();
-      if (!d.access_token) throw new Error("Ошибка GCP: " + JSON.stringify(d));
-      return { token: d.access_token, projectId: sa.project_id || VERTEX_PROJECT_ID };
-    }
-
-    function buildNanoBananaPrompt() {
+    // УПРАВЛЕНИЕ ПРОМПТОМ (АВТО ИЛИ ПОЛНОСТЬЮ РУЧНОЙ)
+    function buildAutoPromptText() {
       const medium = document.getElementById("nbMediumSelect").value;
       const sat = document.getElementById("nbSatSelect").value;
-      const customText = document.getElementById("editFilmPrompt").value.trim();
+      const extra = document.getElementById("nbExtraDetails").value.trim();
       const mMap = {
         "Gouache": "Technique: authentic mid-century Soviet gouache and watercolor on thick paper, tactile paper texture, visible brushstrokes.",
         "Watercolor": "Technique: soft watercolor wash on textured paper, clean ink outlines.",
@@ -1044,17 +1071,61 @@
       return [
         "CRITICAL RESTORATION RULE: The source image suffers from extreme cyan dye decay and brick-red discoloration. Do NOT retain this brick-red tint. Re-colorize from scratch.",
         mMap[medium] || mMap["Gouache"], sMap[sat] || sMap["Vibrant"],
-        customText ? `Additional instructions: ${customText}.` : "",
+        extra ? `Additional subject & style instructions: ${extra}.` : "",
         "No 3D CGI render, no plastic gradients. Text preservation: Exactly reproduce the Russian Cyrillic caption at the bottom. Keep Russian letters identical, sharp and legible."
       ].filter(Boolean).join(" ");
     }
 
-    async function callNanoBananaApi(origUrl, refUrl = null) {
+    function onPromptModeChange() {
+      const m = document.getElementById("nbPromptMode").value;
+      document.getElementById("autoPromptBox").classList.toggle("hidden", m === "custom");
+      document.getElementById("customPromptBox").classList.toggle("hidden", m !== "custom");
+      if (m === "custom" && !document.getElementById("nbFullCustomPrompt").value.trim()) {
+        document.getElementById("nbFullCustomPrompt").value = buildAutoPromptText();
+      }
+    }
+
+    function refreshPromptPreview() {
+      if (document.getElementById("nbPromptMode").value === "auto") {
+        document.getElementById("nbFullCustomPrompt").value = buildAutoPromptText();
+      }
+    }
+
+    function getActivePromptText() {
+      if (document.getElementById("nbPromptMode").value === "custom") {
+        return document.getElementById("nbFullCustomPrompt").value.trim() || buildAutoPromptText();
+      }
+      return buildAutoPromptText();
+    }
+
+    let cachedTokenObj = { token: "", projectId: "", exp: 0 };
+    async function getVertexAccessToken(saJsonStr) {
+      const now = Math.floor(Date.now() / 1000);
+      if (cachedTokenObj.token && cachedTokenObj.exp > now + 120) return cachedTokenObj;
+
+      const sa = JSON.parse(saJsonStr);
+      const pem = sa.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s+/g, "");
+      const bin = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
+      const key = await crypto.subtle.importKey("pkcs8", bin.buffer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+      const b64u = (s) => btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      const hdr = b64u(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+      const clm = b64u(JSON.stringify({ iss: sa.client_email, scope: "https://www.googleapis.com/auth/cloud-platform", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 }));
+      const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(`${hdr}.${clm}`));
+      const jwt = `${hdr}.${clm}.${b64u(String.fromCharCode(...new Uint8Array(sig)))}`;
+      const res = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}` });
+      const d = await res.json();
+      if (!d.access_token) throw new Error("Ошибка GCP: " + JSON.stringify(d));
+      cachedTokenObj = { token: d.access_token, projectId: sa.project_id || VERTEX_PROJECT_ID, exp: now + 3500 };
+      return cachedTokenObj;
+    }
+
+    // ВЫЗОВ ИИ С АВТОМАТИЧЕСКИМ ПОВТОРОМ ПРИ 429 ИЛИ ПУСТОМ ОТВЕТЕ (БЕЗ ПРОПУСКА КАДРОВ!)
+    async function callNanoBananaApiWithRetry(origUrl, refUrl = null, onRetryLog = null) {
       const creds = (adminSecrets.gcp_credentials || "").trim();
       if (!creds) { openSecretsModal(); throw new Error("Укажите ключ Gemini/Vertex в '🔑 Ключи'"); }
       const modelId = document.getElementById("nbModelSelect").value;
       const resSize = document.getElementById("nbResSelect").value;
-      const temp = parseFloat(document.getElementById("nbTempRange").value) || 0.35;
+      const baseTemp = parseFloat(document.getElementById("nbTempRange").value) || 0.35;
 
       const toB64 = async (u) => {
         const r = await fetch(u);
@@ -1069,44 +1140,71 @@
       if (refUrl) {
         try { const rf = await toB64(refUrl); parts.push({ text: "STYLE REFERENCE:" }, { inlineData: { mimeType: rf.mime, data: rf.b64 } }); } catch (e) {}
       }
-      parts.push({ text: "SOURCE FRAME:" }, { inlineData: { mimeType: orig.mime, data: orig.b64 } }, { text: buildNanoBananaPrompt() });
+      parts.push({ text: "SOURCE FRAME:" }, { inlineData: { mimeType: orig.mime, data: orig.b64 } }, { text: getActivePromptText() });
 
-      const reqBody = {
-        contents: [{ role: "user", parts }],
-        generationConfig: { responseModalities: ["IMAGE"], temperature: temp, topP: 0.95, imageConfig: { aspectRatio: "4:3", imageSize: resSize } }
-      };
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        try {
+          const reqBody = {
+            contents: [{ role: "user", parts }],
+            generationConfig: {
+              responseModalities: attempt === 1 ? ["IMAGE"] : ["TEXT", "IMAGE"],
+              temperature: attempt === 1 ? baseTemp : Math.min(0.65, baseTemp + 0.1),
+              topP: 0.95,
+              imageConfig: { aspectRatio: "4:3", imageSize: resSize }
+            }
+          };
 
-      let apiUrl = "", headers = { "Content-Type": "application/json" };
-      if (creds.startsWith("{")) {
-        const { token, projectId } = await getVertexAccessToken(creds);
-        apiUrl = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/global/publishers/google/models/${modelId}:generateContent`;
-        headers["Authorization"] = `Bearer ${token}`;
-      } else {
-        apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${creds}`;
+          let apiUrl = "", headers = { "Content-Type": "application/json" };
+          if (creds.startsWith("{")) {
+            const { token, projectId } = await getVertexAccessToken(creds);
+            apiUrl = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/global/publishers/google/models/${modelId}:generateContent`;
+            headers["Authorization"] = `Bearer ${token}`;
+          } else {
+            apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${creds}`;
+          }
+
+          const res = await fetch(apiUrl, { method: "POST", headers, body: JSON.stringify(reqBody) });
+          if (res.status === 429 || res.status === 503) {
+            const waitSec = attempt * 12;
+            if (onRetryLog) onRetryLog(`⏳ Лимит скорости API (429) — жду ${waitSec} сек и повторяю (попытка ${attempt + 1}/4)...`);
+            await new Promise(r => setTimeout(r, waitSec * 1000));
+            continue;
+          }
+          if (!res.ok) throw new Error(`Ошибка API (${res.status}): ${await res.text()}`);
+
+          const json = await res.json();
+          const imgPart = (json?.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data);
+          if (!imgPart) {
+            if (attempt < 4) {
+              if (onRetryLog) onRetryLog(`🔄 Пустой ответ ИИ — повторная попытка ${attempt + 1}/4 через 4 сек...`);
+              await new Promise(r => setTimeout(r, 4000));
+              continue;
+            }
+            throw new Error("ИИ не вернул картинку после 4 попыток");
+          }
+
+          return await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+              const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+              c.getContext("2d").drawImage(img, 0, 0);
+              c.toBlob(b => b ? resolve(b) : reject(new Error("Ошибка WebP")), "image/webp", 0.92);
+            };
+            img.onerror = reject;
+            img.src = `data:${imgPart.inlineData.mimeType || 'image/png'};base64,${imgPart.inlineData.data}`;
+          });
+        } catch (err) {
+          if (attempt === 4) throw err;
+          await new Promise(r => setTimeout(r, 4000));
+        }
       }
-
-      const res = await fetch(apiUrl, { method: "POST", headers, body: JSON.stringify(reqBody) });
-      if (!res.ok) throw new Error(`Ошибка API (${res.status}): ${await res.text()}`);
-      const json = await res.json();
-      const imgPart = (json?.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data);
-      if (!imgPart) throw new Error("ИИ не вернул картинку");
-
-      return await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
-          c.getContext("2d").drawImage(img, 0, 0);
-          c.toBlob(b => b ? resolve(b) : reject(new Error("Ошибка WebP")), "image/webp", 0.92);
-        };
-        img.onerror = reject;
-        img.src = `data:${imgPart.inlineData.mimeType || 'image/png'};base64,${imgPart.inlineData.data}`;
-      });
     }
 
+    // Эталон стиля по человеческому номеру кадра (с 1 до 58)
     function getStyleRefUrl() {
-      const n = parseInt(document.getElementById("nbRefFrame").value.trim());
-      if (isNaN(n)) return null;
-      const rf = currentFrames.find(f => f.frame_number === n);
+      const humanNum = parseInt(document.getElementById("nbRefFrame").value.trim());
+      if (isNaN(humanNum) || humanNum < 1 || humanNum > currentFrames.length) return null;
+      const rf = currentFrames[humanNum - 1];
       return rf ? pickBestUrl(rf, "restored", "auto").url : null;
     }
 
@@ -1114,17 +1212,19 @@
       if (!isAdmin || !currentFrames.length || !currentFilm) return;
       if (!adminSecrets.hf_token) return openSecretsModal();
       const fr = currentFrames[currentFrameIdx];
+      const humanNum = currentFrameIdx + 1;
       const origUrl = getFrameVersionsInfo(fr).originalUrl;
       const logBox = document.getElementById("aiLogBox");
-      logBox.classList.remove("hidden"); logBox.innerText = `⏳ Реставрирую кадр #${fr.frame_number}...`;
+      logBox.classList.remove("hidden");
+      logBox.innerText = `⏳ Реставрирую кадр №${humanNum} (из ${currentFrames.length})...`;
 
       await keepScreenAwake(true);
       try {
-        const webpBlob = await callNanoBananaApi(origUrl, getStyleRefUrl());
-        logBox.innerText = `📤 Загрузка на Hugging Face...`;
+        const webpBlob = await callNanoBananaApiWithRetry(origUrl, getStyleRefUrl(), (msg) => { logBox.innerText = msg; });
+        logBox.innerText = `📤 Загрузка кадра №${humanNum} на Hugging Face...`;
         const { uploadFiles } = await import("https://esm.sh/@huggingface/hub");
         const pathInRepo = `nanobanana_paid/${currentFilm.id}/f_${String(fr.frame_number).padStart(3, "0")}.webp`;
-        await uploadFiles({ repo: { type: "dataset", name: HF_REPO }, accessToken: adminSecrets.hf_token, commitTitle: `Restore #${fr.frame_number}`, files: [{ path: pathInRepo, content: webpBlob }] });
+        await uploadFiles({ repo: { type: "dataset", name: HF_REPO }, accessToken: adminSecrets.hf_token, commitTitle: `Restore frame #${humanNum}`, files: [{ path: pathInRepo, content: webpBlob }] });
 
         const hfUrl = `https://huggingface.co/datasets/${HF_REPO}/resolve/main/${pathInRepo}`;
         await sbFetch("frame_versions?on_conflict=frame_id,version_type", {
@@ -1134,8 +1234,8 @@
         const bust = `${hfUrl}?t=${Date.now()}`;
         const ex = fr.frame_versions.find(v => v.version_type === "nanobanana");
         if (ex) ex.image_url = bust; else fr.frame_versions.push({ version_type: "nanobanana", image_url: bust });
-        setViewMode("restored"); renderThumbsGrid();
-        logBox.innerText = `✅ Кадр #${fr.frame_number} обновлен!`;
+        setViewMode("restored"); renderThumbsGrid(); updateCostEstimate();
+        logBox.innerText = `✅ Кадр №${humanNum} успешно отреставрирован!`;
       } catch (e) { logBox.innerText = `❌ ${e.message}`; }
       finally { await keepScreenAwake(false); }
     }
@@ -1143,25 +1243,36 @@
     async function runBatchRestoration() {
       if (!isAdmin || !currentFrames.length || !currentFilm) return;
       if (!adminSecrets.hf_token) return openSecretsModal();
-      const targetFrames = getTargetFramesForBatch();
-      if (!targetFrames.length) return alert("Нет кадров для обработки! Выберите режим '🔄 Все кадры (заново)'.");
+      const targetItems = getTargetFramesForBatch();
+      if (!targetItems.length) return alert("Все выбранные кадры уже готовы! Чтобы переделать их заново, выберите '🔄 Все кадры' или '🔢 Указать номера'.");
 
       const btn = document.getElementById("btnBatchRestore");
+      const stopBtn = document.getElementById("btnStopBatch");
       const logBox = document.getElementById("aiLogBox");
-      btn.disabled = true; logBox.classList.remove("hidden");
+      btn.disabled = true; stopBtn.classList.remove("hidden"); logBox.classList.remove("hidden");
+      stopBatchRequested = false;
 
       await keepScreenAwake(true);
       const refUrl = getStyleRefUrl(), filesToUpload = [], doneFrames = [];
       try {
-        for (let i = 0; i < targetFrames.length; i++) {
-          const fr = targetFrames[i];
-          logBox.innerText = `🍌 Кадр #${fr.frame_number} (${i + 1} из ${targetFrames.length})...`;
+        for (let i = 0; i < targetItems.length; i++) {
+          if (stopBatchRequested) {
+            logBox.innerText += `\n⏹️ Остановлено пользователем. Сохраняю готовые кадры...`;
+            break;
+          }
+          const { fr, humanNum } = targetItems[i];
+          logBox.innerText = `🍌 Кадр №${humanNum} (${i + 1} из ${targetItems.length})...`;
           try {
-            const webpBlob = await callNanoBananaApi(getFrameVersionsInfo(fr).originalUrl, refUrl);
+            const webpBlob = await callNanoBananaApiWithRetry(
+              getFrameVersionsInfo(fr).originalUrl,
+              refUrl,
+              (retryMsg) => { logBox.innerText = `🍌 Кадр №${humanNum}: ${retryMsg}`; }
+            );
             filesToUpload.push({ path: `nanobanana_paid/${currentFilm.id}/f_${String(fr.frame_number).padStart(3, "0")}.webp`, content: webpBlob });
             doneFrames.push(fr);
-          } catch (e) { logBox.innerText += `\n❌ Кадр #${fr.frame_number}: ${e.message}`; }
-          await new Promise(r => setTimeout(r, 1800));
+          } catch (e) { logBox.innerText += `\n❌ Кадр №${humanNum}: ${e.message}`; }
+          // Пауза 4 сек между кадрами, чтобы не превышать минутный лимит Vertex AI (429)
+          await new Promise(r => setTimeout(r, 4000));
         }
         if (!filesToUpload.length) return;
 
@@ -1185,10 +1296,10 @@
 
         await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ status: "restored_paid" }) });
         currentFilm.status = "restored_paid"; document.getElementById("editFilmStatus").value = "restored_paid";
-        updatePlayerFrame(); renderThumbsGrid(); renderStatusTabs();
-        logBox.innerText = `🏁 ГОТОВО! Отреставрировано кадров: ${doneFrames.length}.`;
+        updatePlayerFrame(); renderThumbsGrid(); renderStatusTabs(); updateCostEstimate();
+        logBox.innerText = `🏁 ГОТОВО! Успешно сохранено кадров: ${doneFrames.length}.`;
       } catch (e) { logBox.innerText = `❌ ${e.message}`; }
-      finally { btn.disabled = false; await keepScreenAwake(false); }
+      finally { btn.disabled = false; stopBtn.classList.add("hidden"); await keepScreenAwake(false); }
     }
 
     window.addEventListener("keydown", (e) => {
