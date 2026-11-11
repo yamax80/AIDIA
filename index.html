@@ -846,7 +846,7 @@
       await keepScreenAwake(true);
       try {
         log(`🔍 Читаю страницу ${sourceUrl}...`);
-        const html = await fetchDiafilmyHtml(sourceUrl);
+        const html = await fetchDiafilmyHtml(sourceUrl, log);
         const doc = new DOMParser().parseFromString(html, "text/html");
 
         let title = (doc.querySelector("title")?.textContent || "")
