@@ -1,307 +1,581 @@
 <!DOCTYPE html>
-<html lang="ru" class="dark">
+<html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Диафонд Архив — Советские диафильмы</title>
+  <title>Диафонд — Цифровой архив диафильмов</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background-color: #12100e; color: #f5ebe0; font-family: system-ui, -apple-system, sans-serif; }
-    .film-card { background: #1c1917; border: 1px solid #292524; transition: transform 0.2s, border-color 0.2s; }
-    .film-card:hover { transform: translateY(-2px); border-color: #d97706; }
-    .frame-box { aspect-ratio: 4/3; background: #090807; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-thumb { background: #44403c; border-radius: 3px; }
+    :root {
+      --bg-main: #18120e;
+      --bg-card: #221a14;
+      --border-warm: #36291f;
+      --gold: #d99b26;
+      --text-main: #f3ece2;
+      --text-muted: #9e9081;
+    }
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .font-serif-title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+    }
+    .hero-glow {
+      background: radial-gradient(circle at 50% 25%, rgba(217, 155, 38, 0.14) 0%, rgba(24, 18, 14, 0) 70%);
+    }
+    .film-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-warm);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .film-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(217, 155, 38, 0.5);
+    }
+    .frame-aspect {
+      aspect-ratio: 4 / 3;
+      background: #0b0907;
+    }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: #46372b; border-radius: 3px; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <!-- ШАПКА -->
-  <header class="sticky top-0 z-30 bg-[#1c1917]/95 backdrop-blur border-b border-stone-800 px-4 py-3">
-    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3 cursor-pointer" onclick="closePlayer()">
-        <span class="text-2xl">🎞️</span>
+  <!-- ВЕРХНЯЯ ШАПКА (В СТИЛЕ MANUS) -->
+  <header class="sticky top-0 z-30 bg-[#18120e]/95 backdrop-blur border-b border-[#2e231a] px-4 py-3">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-2">
+      <!-- Логотип -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="showSection('catalog')">
+        <div class="w-10 h-10 rounded-xl bg-[#2a2017] border border-[#453425] flex items-center justify-center text-[#d99b26]">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+            <line x1="7" y1="2" x2="7" y2="22"></line>
+            <line x1="17" y1="2" x2="17" y2="22"></line>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <line x1="2" y1="7" x2="7" y2="7"></line>
+            <line x1="2" y1="17" x2="7" y2="17"></line>
+            <line x1="17" y1="17" x2="22" y2="17"></line>
+            <line x1="17" y1="7" x2="22" y2="7"></line>
+          </svg>
+        </div>
         <div>
-          <h1 class="font-bold text-lg leading-tight text-amber-400">ДИАФОНД АРХИВ</h1>
-          <p class="text-xs text-stone-400">Цифровая реставрация диафильмов</p>
+          <div class="font-serif-title text-xl font-semibold leading-none tracking-wide text-[#f5efe6]">Диафонд</div>
+          <div class="text-[10px] tracking-[0.18em] uppercase text-[#9e9081] mt-1">Цифровой архив</div>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <button id="aiKeysBtn" onclick="openKeysModal()" class="hidden px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-800 hover:bg-stone-700 text-amber-300 border border-amber-500/30">
-          🔑 Ключи ИИ
+      <!-- Навигация -->
+      <div class="flex items-center gap-5">
+        <button id="navCatalogBtn" onclick="showSection('catalog')" class="text-sm font-medium text-[#d99b26] border-b-2 border-[#d99b26] pb-1">
+          Архив
         </button>
-        <button id="adminToggleBtn" onclick="toggleAdminMode()" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700">
-          ⚙️ Управление
+        <button id="navAboutBtn" onclick="showSection('about')" class="text-sm font-medium text-[#9e9081] hover:text-[#f3ece2] pb-1">
+          О проекте
+        </button>
+      </div>
+
+      <!-- Кнопка Войти / Админка -->
+      <div class="flex items-center gap-2">
+        <button id="adminSettingsBtn" onclick="openSecretsModal()" class="hidden px-2.5 py-1.5 rounded-lg text-xs bg-[#2a2017] text-[#d99b26] border border-[#4a3728]">
+          🔑 Ключи БД
+        </button>
+        <button id="loginBtn" onclick="handleAuthClick()" class="px-4 py-1.5 rounded-xl text-sm font-medium bg-[#2a2017] hover:bg-[#35281d] text-[#e6ccb2] border border-[#4a3728] transition">
+          Войти
         </button>
       </div>
     </div>
   </header>
 
-  <!-- КАТАЛОГ -->
-  <main id="catalogView" class="flex-1 max-w-7xl w-full mx-auto p-4">
-    <!-- АДМИН-ВКЛАДКИ СТАТУСОВ -->
-    <div id="adminStatusTabs" class="hidden mb-4 p-3 rounded-xl bg-stone-900 border border-amber-500/30">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-xs font-bold uppercase tracking-wider text-amber-400">🛠️ Мобильная студия управления (все 244 ленты)</span>
-        <span class="text-[11px] text-stone-400">Выбирайте ленту для проверки, смены обложки или ИИ-реставрации</span>
-      </div>
-      <div id="statusButtons" class="flex flex-wrap gap-1.5"></div>
-    </div>
-
-    <!-- ПОИСК И ФИЛЬТРЫ -->
-    <div class="flex flex-wrap gap-2 mb-5">
-      <input id="searchInput" type="text" oninput="renderCatalog()" placeholder="Поиск по названию, художнику, году..." 
-        class="flex-1 min-w-[220px] bg-stone-900 border border-stone-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-500" />
-      <select id="studioFilter" onchange="renderCatalog()" class="bg-stone-900 border border-stone-700 rounded-xl px-3 py-2.5 text-sm">
-        <option value="">Все студии</option>
-      </select>
-    </div>
-
-    <div id="catalogStatusText" class="text-xs text-stone-400 mb-3">Загрузка архива...</div>
-    <div id="filmsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
-  </main>
-
-  <!-- ПЛЕЕР И СТУДИЯ РЕСТАВРАЦИИ -->
-  <section id="playerView" class="hidden flex-1 max-w-5xl w-full mx-auto p-3 sm:p-5">
-    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-      <button onclick="closePlayer()" class="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-sm flex items-center gap-1">
-        ← Назад в каталог
-      </button>
-
-      <div class="flex flex-wrap items-center gap-2">
-        <div class="inline-flex rounded-lg bg-stone-900 p-1 border border-stone-700">
-          <button id="btnModeRestored" onclick="setViewMode('restored')" class="px-3 py-1 rounded-md text-xs font-semibold bg-amber-600 text-white">
-            ✨ Реставрация
-          </button>
-          <button id="btnModeOriginal" onclick="setViewMode('original')" class="px-3 py-1 rounded-md text-xs font-semibold text-stone-400">
-            📜 Оригинал
-          </button>
+  <!-- ГЛАВНАЯ СТРАНИЦА: HERO + ФИЛЬТРЫ + КАТАЛОГ -->
+  <main id="catalogSection" class="flex-1">
+    
+    <!-- HERO БЛОК -->
+    <div id="heroBanner" class="hero-glow border-b border-[#291f17] px-4 py-10 sm:py-14 text-center">
+      <div class="max-w-2xl mx-auto">
+        <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#261d15] border border-[#453425] text-[#d99b26] text-xs mb-5">
+          <span>✨</span> Восстановлено нейросетью
         </div>
-
-        <select id="engineSelect" onchange="updatePlayerFrame()" class="bg-stone-900 border border-stone-700 rounded-lg px-2.5 py-1.5 text-xs">
-          <option value="auto">Авто (Лучшая)</option>
-          <option value="nanobanana">Gemini 3.1 (NanoBanana)</option>
-          <option value="flux2">FLUX.2</option>
-          <option value="upscaled">Upscaled</option>
-        </select>
+        <h1 class="font-serif-title text-4xl sm:text-6xl leading-[1.08] text-[#f5efe6]">
+          Архив советских<br />
+          <span class="italic text-[#d99b26] font-normal">диафильмов</span>
+        </h1>
+        <p class="text-sm sm:text-base text-[#9e9081] mt-4 leading-relaxed max-w-xl mx-auto">
+          Бережно оцифрованная и восстановленная коллекция рисованных диафильмов — с живыми красками, чистыми кадрами и духом старых добрых книжек.
+        </p>
       </div>
     </div>
 
-    <div class="mb-3">
-      <h2 id="playerTitle" class="text-xl sm:text-2xl font-bold text-amber-400"></h2>
-      <p id="playerMeta" class="text-xs text-stone-400 mt-0.5"></p>
-    </div>
+    <div class="max-w-6xl mx-auto px-4 py-6">
 
-    <!-- ЭКРАН ПРОЕКТОРА -->
-    <div class="relative rounded-2xl overflow-hidden border border-stone-800 bg-black shadow-2xl">
-      <div id="touchArea" class="frame-box w-full flex items-center justify-center relative select-none">
-        <img id="playerImg" src="" alt="Кадр диафильма" class="max-h-[72vh] w-auto object-contain mx-auto" />
-        
-        <button onclick="prevFrame()" class="absolute left-0 top-0 bottom-0 w-1/5 flex items-center justify-start pl-3 opacity-0 hover:opacity-100 transition-opacity bg-gradient-to-r from-black/50 to-transparent text-2xl">❮</button>
-        <button onclick="nextFrame()" class="absolute right-0 top-0 bottom-0 w-1/5 flex items-center justify-end pr-3 opacity-0 hover:opacity-100 transition-opacity bg-gradient-to-l from-black/50 to-transparent text-2xl">❯</button>
+      <!-- ПАНЕЛЬ АДМИНИСТРАТОРА (ВИДНА ТОЛЬКО ПОСЛЕ ВХОДА ПО ПАРОЛЮ) -->
+      <div id="adminBar" class="hidden mb-6 p-3.5 rounded-2xl bg-[#221a14] border border-[#d99b26]/40">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+          <span class="text-xs font-semibold uppercase tracking-wider text-[#d99b26]">🛠️ Режим главного редактора и реставратора</span>
+          <span class="text-[11px] text-[#9e9081]">Ключи ИИ загружены из защищенного хранилища Supabase</span>
+        </div>
+        <div id="adminStatusTabs" class="flex flex-wrap gap-1.5"></div>
       </div>
 
-      <!-- Нижняя панель проектора -->
-      <div class="bg-stone-900/95 px-4 py-3 border-t border-stone-800 flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center gap-2">
-          <button onclick="prevFrame()" class="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-sm">◀ Пред.</button>
-          <span id="frameCounter" class="text-sm font-mono px-2">0 / 0</span>
-          <button onclick="nextFrame()" class="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-sm">След. ▶</button>
-        </div>
-
-        <div id="frameBadge" class="text-xs text-stone-400"></div>
-
-        <!-- Быстрые кнопки Админа для текущего кадра -->
-        <div id="adminFrameActions" class="hidden flex flex-wrap items-center gap-2">
-          <button onclick="restoreSingleCurrentFrame()" class="px-2.5 py-1 rounded bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 text-xs hover:bg-emerald-600/30">
-            ✨ Переделать этот кадр (ИИ)
-          </button>
-          <button onclick="setCurrentFrameAsCover()" class="px-2.5 py-1 rounded bg-amber-600/20 border border-amber-500/40 text-amber-300 text-xs hover:bg-amber-600/30">
-            🖼️ Сделать обложкой (f_000)
-          </button>
-          <button onclick="toggleCurrentFrameActive()" class="px-2.5 py-1 rounded bg-stone-800 border border-stone-700 text-stone-300 text-xs hover:bg-stone-700">
-            👁️ Скрыть/показать
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ЛЕНТА МИНИАТЮР -->
-    <div id="thumbsStrip" class="flex gap-2 overflow-x-auto py-3 mt-2"></div>
-
-    <!-- МОБИЛЬНЫЙ ПУЛЬТ ИИ-РЕСТАВРАЦИИ И УПРАВЛЕНИЯ БД (ТОЛЬКО ДЛЯ АДМИНА) -->
-    <div id="adminFilmEditor" class="hidden mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-      
-      <!-- Блок 1: Запуск ИИ прямо с телефона -->
-      <div class="p-4 rounded-2xl bg-stone-900 border border-emerald-500/30 space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="font-bold text-sm text-emerald-400">🚀 ИИ-Реставрация (Gemini 3.1 — Без Colab)</h3>
-          <button onclick="openKeysModal()" class="text-xs text-amber-400 underline">Настроить ключи</button>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
+      <!-- КОМПАКТНЫЙ УДОБНЫЙ ФИЛЬТР -->
+      <div class="bg-[#201813] border border-[#33271d] rounded-2xl p-3 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+          <div class="sm:col-span-2 relative">
+            <input id="searchInput" type="text" oninput="renderCatalog()" placeholder="🔍 Поиск по названию или автору..." 
+              class="w-full bg-[#16110d] border border-[#382b20] rounded-xl px-3.5 py-2 text-sm text-[#f3ece2] placeholder-[#786b5e] focus:outline-none focus:border-[#d99b26]" />
+          </div>
           <div>
-            <label class="text-xs text-stone-400">Стиль иллюстрации:</label>
-            <select id="aiStyle" class="w-full mt-1 bg-stone-950 border border-stone-700 rounded-lg px-2.5 py-2 text-xs">
-              <option value="Gouache">Гуашь / Акварель (СССР)</option>
-              <option value="Watercolor">Мягкая акварель</option>
-              <option value="Puppet">Кукольный диафильм</option>
-              <option value="Lithography">Литография / Печать</option>
+            <select id="artistFilter" onchange="renderCatalog()" class="w-full bg-[#16110d] border border-[#382b20] rounded-xl px-3 py-2 text-sm text-[#e0d6c8]">
+              <option value="">Все художники</option>
             </select>
           </div>
-          <div>
-            <label class="text-xs text-stone-400">Кадр для обложки (f_000):</label>
-            <input id="aiCoverNum" type="number" value="3" min="0" class="w-full mt-1 bg-stone-950 border border-stone-700 rounded-lg px-2.5 py-2 text-xs" />
+          <div class="flex gap-2">
+            <select id="yearFilter" onchange="renderCatalog()" class="flex-1 bg-[#16110d] border border-[#382b20] rounded-xl px-3 py-2 text-sm text-[#e0d6c8]">
+              <option value="">Все годы</option>
+            </select>
+            <button onclick="resetFilters()" title="Сбросить фильтры" class="px-3 py-2 rounded-xl bg-[#2a2017] hover:bg-[#382b20] text-xs text-[#d99b26] border border-[#382b20]">
+              Сброс
+            </button>
           </div>
         </div>
-        <div>
-          <label class="text-xs text-stone-400">Какие кадры обработать:</label>
-          <input id="aiFramesRange" type="text" value="Все необработанные" placeholder="Все необработанные или 1-5, 8" 
-            class="w-full mt-1 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-xs" />
-        </div>
-        <div id="aiProgressBox" class="hidden p-2.5 rounded-lg bg-stone-950 border border-stone-800 text-xs font-mono text-amber-300 whitespace-pre-wrap"></div>
-        <button id="btnRunBatchAi" onclick="runBatchRestoration()" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">
-          🚀 Запустить реставрацию выбранных кадров
+      </div>
+
+      <!-- ЗАГОЛОВОК КОЛЛЕКЦИИ И СЕТКА -->
+      <div class="flex items-baseline justify-between mb-4">
+        <h2 class="font-serif-title text-2xl sm:text-3xl text-[#f5efe6]">Коллекция</h2>
+        <span id="filmsCountLabel" class="text-xs text-[#9e9081]">Загрузка...</span>
+      </div>
+
+      <div id="filmsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </div>
+  </main>
+
+  <!-- СТРАНИЦА «О ПРОЕКТЕ» -->
+  <section id="aboutSection" class="hidden flex-1 max-w-3xl mx-auto px-4 py-12 space-y-6">
+    <h2 class="font-serif-title text-4xl text-[#d99b26]">О проекте «Диафонд»</h2>
+    <p class="text-sm sm:text-base text-[#cfc4b6] leading-relaxed">
+      Советские диафильмы — это уникальный пласт книжной и художественной культуры середины XX века. Над ними работали лучшие художники-иллюстраторы студии «Диафильм», создавая кадры гуашью и акварелью.
+    </p>
+    <p class="text-sm sm:text-base text-[#cfc4b6] leading-relaxed">
+      Со временем цветная обратимая пленка подверглась выцветанию («уходу в кирпично-красный оттенок»), покрылась царапинами и пылью. Наш проект использует современные алгоритмы бережной нейросетевой реставрации, возвращая кадрам изначальную палитру гуаши и акварели при полном сохранении оригинального шрифта и композиции художника.
+    </p>
+  </section>
+
+  <!-- СТРАНИЦА ПРОСМОТРА ДИАФИЛЬМА (ПЛЕЕР КАК НА СКРИНШОТЕ 4 + АДМИНКА) -->
+  <section id="playerSection" class="hidden flex-1 max-w-4xl w-full mx-auto px-3 sm:px-5 py-4">
+    
+    <!-- Верхняя строка возврата -->
+    <div class="flex items-center justify-between gap-2 mb-3">
+      <button onclick="closePlayer()" class="px-3 py-1.5 rounded-xl bg-[#241b15] hover:bg-[#30241c] border border-[#3b2d22] text-xs sm:text-sm text-[#e6ccb2] flex items-center gap-1.5">
+        ← В коллекцию
+      </button>
+      <div class="text-right">
+        <span id="playerTitleTop" class="font-serif-title text-lg sm:text-2xl text-[#f5efe6] font-semibold"></span>
+      </div>
+    </div>
+
+    <!-- ГЛАВНЫЙ КАДР С ПЛАВАЮЩИМИ КНОПКАМИ ПОВЕРХ КАРТИНКИ (ТОЧНО КАК НА СКРИНШОТЕ 4) -->
+    <div id="projectorBox" class="relative rounded-2xl overflow-hidden border border-[#3b2d22] bg-[#0a0806] shadow-2xl select-none">
+      
+      <!-- Плавающий переключатель Реставрация / Оригинал сверху по центру -->
+      <div id="floatingModePill" class="absolute top-3 left-1/2 -translate-x-1/2 z-20 inline-flex rounded-full bg-[#1a1410]/85 backdrop-blur-md p-1 border border-[#4a3728] shadow-lg">
+        <button id="pillRestored" onclick="setViewMode('restored')" class="px-4 py-1 rounded-full text-xs font-semibold bg-[#d99b26] text-[#18120e] transition">
+          Реставрация
+        </button>
+        <button id="pillOriginal" onclick="setViewMode('original')" class="px-4 py-1 rounded-full text-xs font-medium text-[#cfc4b6] hover:text-white transition">
+          Оригинал
         </button>
       </div>
 
-      <!-- Блок 2: Метаданные и статус в Supabase -->
-      <div class="p-4 rounded-2xl bg-stone-900 border border-amber-500/30 space-y-3">
-        <h3 class="font-bold text-sm text-amber-400">📋 Карточка диафильма в БД</h3>
-        <div class="grid grid-cols-2 gap-2">
-          <div class="col-span-2">
-            <label class="text-xs text-stone-400">Статус ленты:</label>
-            <select id="editStatus" class="w-full mt-1 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-xs font-semibold">
-              <option value="restored_paid">✅ restored_paid (Опубликован на витрине)</option>
-              <option value="waiting_approval">⏳ waiting_approval (На проверке)</option>
-              <option value="ready_ai">🎯 ready_ai (Готов к ИИ)</option>
-              <option value="downloaded">📥 downloaded (Скачан оригинал)</option>
-              <option value="pending">💤 pending (В очереди)</option>
-            </select>
-          </div>
-          <div>
-            <label class="text-xs text-stone-400">Художник:</label>
-            <input id="editArtist" type="text" class="w-full mt-1 bg-stone-950 border border-stone-700 rounded-lg px-2.5 py-1.5 text-xs" />
-          </div>
-          <div>
-            <label class="text-xs text-stone-400">Год выпуска:</label>
-            <input id="editYear" type="number" class="w-full mt-1 bg-stone-950 border border-stone-700 rounded-lg px-2.5 py-1.5 text-xs" />
-          </div>
-        </div>
-        <div>
-          <label class="text-xs text-stone-400">Доп. инструкции промпта (custom_prompt):</label>
-          <textarea id="editCustomPrompt" rows="2" class="w-full mt-1 bg-stone-950 border border-stone-700 rounded-lg px-2.5 py-1.5 text-xs" placeholder="Детали сюжета или стиля для этого фильма..."></textarea>
-        </div>
-        <div class="flex items-center justify-between pt-1">
-          <a id="editOriginalLink" href="#" target="_blank" class="text-xs text-amber-400 hover:underline">🔗 Источник diafilmy.su</a>
-          <button onclick="saveFilmChanges()" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold">
-            💾 Сохранить в БД
+      <!-- Сам кадр -->
+      <div id="mainFrameTouchArea" class="frame-aspect w-full flex items-center justify-center relative">
+        <img id="mainFrameImg" src="" alt="Кадр" class="w-full h-full object-contain" />
+
+        <!-- Круглая кнопка ВЛЕВО -->
+        <button onclick="prevFrame()" class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#1a1410]/75 hover:bg-[#1a1410] border border-[#4a3728]/70 text-[#f3ece2] flex items-center justify-center text-lg shadow-lg active:scale-95">
+          ‹
+        </button>
+
+        <!-- Круглая кнопка ВПРАВО -->
+        <button onclick="nextFrame()" class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#1a1410]/75 hover:bg-[#1a1410] border border-[#4a3728]/70 text-[#f3ece2] flex items-center justify-center text-lg shadow-lg active:scale-95">
+          ›
+        </button>
+
+        <!-- Круглая кнопка НА ВЕСЬ ЭКРАН в правом нижнем углу -->
+        <button onclick="openFullscreenModal()" title="На весь экран" class="absolute right-3 bottom-3 w-10 h-10 rounded-full bg-[#1a1410]/80 hover:bg-[#1a1410] border border-[#4a3728] text-[#f3ece2] flex items-center justify-center shadow-lg active:scale-95">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Строка информации под кадром + счетчик "1 / 53" -->
+    <div class="flex flex-wrap items-center justify-between gap-2 mt-2.5 px-1">
+      <div class="text-xs text-[#9e9081]" id="playerMetaLine"></div>
+      <div class="flex items-center gap-3">
+        <!-- Селектор версий показывается ТОЛЬКО если у кадра реально больше 1 ИИ-версии -->
+        <select id="availableVersionSelect" onchange="onVersionSelectChange()" class="hidden bg-[#221a14] border border-[#3b2d22] rounded-lg px-2 py-1 text-xs text-[#d99b26]"></select>
+        <span id="frameCounterText" class="text-sm font-medium text-[#cfc4b6] tabular-nums">1 / 1</span>
+      </div>
+    </div>
+
+    <!-- ПАНЕЛЬ АДМИНА ДЛЯ ТЕКУЩЕГО КАДРА И РЕСТАВРАЦИИ (СКРЫТА ДЛЯ ОБЫЧНЫХ ЗРИТЕЛЕЙ) -->
+    <div id="adminPlayerControls" class="hidden mt-4 space-y-4">
+      <!-- Быстрые действия с текущим кадром -->
+      <div class="p-3 rounded-2xl bg-[#221a14] border border-[#d99b26]/40 flex flex-wrap items-center justify-between gap-2">
+        <span id="adminCurrentFrameLabel" class="text-xs font-semibold text-[#d99b26]">Кадр #0</span>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="setCurrentFrameAsCover()" class="px-3 py-1.5 rounded-xl bg-[#d99b26]/20 border border-[#d99b26]/50 text-[#f3c668] text-xs font-medium hover:bg-[#d99b26]/30">
+            🖼️ Сделать обложкой фильма
+          </button>
+          <button onclick="restoreSingleCurrentFrame()" class="px-3 py-1.5 rounded-xl bg-emerald-700/30 border border-emerald-500/40 text-emerald-300 text-xs font-medium hover:bg-emerald-700/40">
+            ✨ Переделать этот кадр (ИИ)
+          </button>
+          <button onclick="toggleCurrentFrameActive()" class="px-3 py-1.5 rounded-xl bg-[#2e231a] border border-[#453425] text-xs text-[#cfc4b6]">
+            👁️ Скрыть/показать кадр
           </button>
         </div>
       </div>
 
+      <!-- Запуск пакетной реставрации и настройки фильма -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="p-4 rounded-2xl bg-[#221a14] border border-emerald-600/30 space-y-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">🚀 Реставрация через Gemini 3.1</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[11px] text-[#9e9081]">Стиль иллюстрации:</label>
+              <select id="aiStyleSelect" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs">
+                <option value="Gouache">Гуашь / Акварель (СССР)</option>
+                <option value="Watercolor">Мягкая акварель</option>
+                <option value="Puppet">Кукольный диафильм</option>
+                <option value="Lithography">Литография</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[11px] text-[#9e9081]">Номера кадров:</label>
+              <input id="aiFramesInput" type="text" value="Все необработанные" placeholder="Напр: 1-5, 8" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs" />
+            </div>
+          </div>
+          <div id="aiLogBox" class="hidden p-2.5 rounded-xl bg-[#120e0a] border border-[#2e231a] text-xs font-mono text-[#d99b26] whitespace-pre-wrap"></div>
+          <button id="btnBatchRestore" onclick="runBatchRestoration()" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">
+            🚀 Отреставрировать выбранные кадры
+          </button>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-[#221a14] border border-[#453425] space-y-2.5">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-[#d99b26]">📋 Статус и метаданные</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="col-span-2">
+              <select id="editFilmStatus" class="w-full bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs">
+                <option value="restored_paid">✅ restored_paid (Опубликован в каталоге)</option>
+                <option value="waiting_approval">⏳ waiting_approval (На проверке)</option>
+                <option value="ready_ai">🎯 ready_ai (Готов к ИИ)</option>
+                <option value="downloaded">📥 downloaded (Скачан оригинал)</option>
+                <option value="pending">💤 pending (В очереди)</option>
+              </select>
+            </div>
+            <input id="editFilmArtist" type="text" placeholder="Художник" class="bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs" />
+            <input id="editFilmYear" type="number" placeholder="Год" class="bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs" />
+          </div>
+          <textarea id="editFilmPrompt" rows="2" placeholder="Индивидуальный промпт (custom_prompt)..." class="w-full bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs"></textarea>
+          <button onclick="saveFilmMeta()" class="w-full py-2 rounded-xl bg-[#d99b26] hover:bg-[#c58a1e] text-[#18120e] text-xs font-bold">
+            💾 Сохранить изменения в БД
+          </button>
+        </div>
+      </div>
     </div>
+
+    <!-- СЕТКА ВСЕХ МИНИАТЮР ПО 6 В РЯД (КАК НА СКРИНШОТЕ 4) -->
+    <div id="thumbsGrid" class="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-5"></div>
   </section>
 
-  <!-- МОДАЛЬНОЕ ОКНО НАСТРОЙКИ КЛЮЧЕЙ ИИ (ХРАНЯТСЯ ТОЛЬКО В ПАМЯТИ ТЕЛЕФОНА) -->
-  <div id="keysModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-    <div class="bg-stone-900 border border-stone-700 rounded-2xl max-w-lg w-full p-5 space-y-4">
-      <div class="flex items-center justify-between">
-        <h3 class="font-bold text-base text-amber-400">🔑 Ключи для мобильной реставрации</h3>
-        <button onclick="closeKeysModal()" class="text-stone-400 hover:text-white">✕</button>
+  <!-- ПОЛНОЭКРАННЫЙ ПРОСМОТРЩИК ДЛЯ ТЕЛЕФОНА (FULLSCREEN MODAL) -->
+  <div id="fullscreenModal" class="hidden fixed inset-0 z-50 bg-black flex flex-col justify-between select-none">
+    <!-- Верхняя панель поверх полного экрана -->
+    <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent z-10">
+      <span id="fsCounter" class="text-xs font-mono text-[#cfc4b6]">1 / 1</span>
+      
+      <div class="inline-flex rounded-full bg-[#1a1410]/90 p-0.5 border border-[#4a3728]">
+        <button id="fsPillRestored" onclick="setViewMode('restored')" class="px-3 py-1 rounded-full text-xs font-semibold bg-[#d99b26] text-[#18120e]">Реставрация</button>
+        <button id="fsPillOriginal" onclick="setViewMode('original')" class="px-3 py-1 rounded-full text-xs text-[#cfc4b6]">Оригинал</button>
       </div>
-      <p class="text-xs text-stone-400">
-        Эти данные сохраняются <b>только локально в браузере вашего телефона</b> (в localStorage) и никогда не попадают в публичный код на GitHub.
+
+      <button onclick="closeFullscreenModal()" class="w-9 h-9 rounded-full bg-[#1a1410]/90 border border-[#4a3728] text-white flex items-center justify-center text-lg">
+        ✕
+      </button>
+    </div>
+
+    <!-- Картинка на весь экран -->
+    <div id="fsTouchArea" class="flex-1 flex items-center justify-center relative overflow-hidden">
+      <img id="fsImg" src="" class="max-h-full max-w-full object-contain" />
+      <button onclick="prevFrame()" class="absolute left-2 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/50 text-white text-2xl flex items-center justify-center">‹</button>
+      <button onclick="nextFrame()" class="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/50 text-white text-2xl flex items-center justify-center">›</button>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНОЕ ОКНО НАСТРОЙКИ КЛЮЧЕЙ В SUPABASE (ТОЛЬКО ДЛЯ АДМИНА) -->
+  <div id="secretsModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+    <div class="bg-[#221a14] border border-[#453425] rounded-2xl max-w-lg w-full p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-serif-title text-2xl text-[#d99b26]">🔑 Хранилище ключей в Supabase</h3>
+        <button onclick="closeSecretsModal()" class="text-[#9e9081] hover:text-white">✕</button>
+      </div>
+      <p class="text-xs text-[#9e9081]">
+        Эти ключи хранятся в защищенной таблице <code>admin_secrets</code> внутри вашей базы Supabase и автоматически подгружаются на любом вашем устройстве после входа по паролю.
       </p>
       <div>
-        <label class="text-xs font-semibold text-stone-300">1. Hugging Face Write Token (hf_...):</label>
-        <input id="inputHfToken" type="password" placeholder="hf_..." class="w-full mt-1 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-xs" />
+        <label class="text-xs text-[#cfc4b6]">1. Hugging Face Write Token (hf_...):</label>
+        <input id="secHfToken" type="password" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-xl px-3 py-2 text-xs" />
       </div>
       <div>
-        <label class="text-xs font-semibold text-stone-300">2. Google Cloud Service Account JSON (для списания бонусов ₪30 в Vertex AI) ИЛИ обычный Gemini API Key (AIza...):</label>
-        <textarea id="inputGcpCreds" rows="5" placeholder='Вставьте сюда содержимое файла service_account.json ({ "type": "service_account", ... }) ИЛИ ключ AIzaSy...' class="w-full mt-1 bg-stone-950 border border-stone-700 rounded-lg px-3 py-2 text-xs font-mono"></textarea>
+        <label class="text-xs text-[#cfc4b6]">2. Google Cloud Service Account JSON (для бонусов Vertex AI) или Gemini API Key:</label>
+        <textarea id="secGcpCreds" rows="4" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-xl px-3 py-2 text-xs font-mono"></textarea>
       </div>
-      <div class="flex justify-end gap-2">
-        <button onclick="closeKeysModal()" class="px-4 py-2 rounded-lg bg-stone-800 text-xs">Отмена</button>
-        <button onclick="saveKeysModal()" class="px-4 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold">Сохранить в телефоне</button>
+      <div>
+        <label class="text-xs text-[#cfc4b6]">3. Новый пароль администратора (оставьте пустым, если не меняете):</label>
+        <input id="secNewPass" type="password" placeholder="Новый пароль..." class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-xl px-3 py-2 text-xs" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeSecretsModal()" class="px-4 py-2 rounded-xl bg-[#2e231a] text-xs">Отмена</button>
+        <button onclick="saveSecretsToDb()" class="px-4 py-2 rounded-xl bg-[#d99b26] text-[#18120e] text-xs font-bold">💾 Сохранить в базу Supabase</button>
       </div>
     </div>
   </div>
 
   <script>
     // =========================================================================
-    // 1. КОНФИГУРАЦИЯ SUPABASE И HUGGING FACE
+    // 1. КОНФИГУРАЦИЯ И ПЕРЕМЕННЫЕ СОСТОЯНИЯ
     // =========================================================================
     const SUPABASE_URL = "https://ppzbqkexgbcejgvazhlb.supabase.co";
-    // Ваш новый публичный ключ sb_publishable_ уже встроен:
     const PUBLIC_KEY = "sb_publishable_yao4t4XJoW6i847Mi33ETw_bjJssYrs";
     const HF_REPO = "YaMax80/diafilms-archive";
     const VERTEX_PROJECT_ID = "gen-lang-client-0898760452";
     const GEMINI_MODEL = "gemini-3.1-flash-lite-image";
 
-    let isAdmin = localStorage.getItem("diafond_admin_mode") === "1";
+    let isAdmin = false;
+    let adminPassword = sessionStorage.getItem("diafond_admin_pass") || "";
+    let adminSecrets = { hf_token: "", gcp_credentials: "" };
     let adminStatusFilter = "PUBLIC";
+
     let allFilms = [];
-    let coversMap = {};
+    let filmStatsMap = {}; // film_id -> { coverUrl, restoredCount }
     let currentFilm = null;
     let currentFrames = [];
     let currentFrameIdx = 0;
-    let viewMode = "restored";
+    let viewMode = "restored"; // 'restored' | 'original'
+    let preferredEngine = "auto";
 
-    // Универсальный запрос к Supabase с поддержкой новых ключей sb_publishable_
     async function sbFetch(path, options = {}) {
       const headers = {
         "apikey": PUBLIC_KEY,
         "Content-Type": "application/json",
         ...(options.headers || {})
       };
-      // Для старых JWT ключей (eyJ...) нужен Authorization, а для новых sb_publishable_ — только apikey!
-      if (PUBLIC_KEY.startsWith("eyJ")) {
-        headers["Authorization"] = `Bearer ${PUBLIC_KEY}`;
-      }
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...options, headers });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(`Ошибка БД (${res.status}): ${txt}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
       return res.status === 204 ? null : await res.json();
     }
 
-    function toggleAdminMode() {
-      isAdmin = !isAdmin;
-      localStorage.setItem("diafond_admin_mode", isAdmin ? "1" : "0");
-      adminStatusFilter = isAdmin ? "ALL" : "PUBLIC";
-      updateAdminUI();
-      renderCatalog();
+    // =========================================================================
+    // 2. АВТОРИЗАЦИЯ АДМИНА ЧЕРЕЗ ЗАЩИЩЕННУЮ ФУНКЦИЮ SUPABASE
+    // =========================================================================
+    async function handleAuthClick() {
+      if (isAdmin) {
+        if (confirm("Выйти из режима администратора?")) {
+          isAdmin = false;
+          adminPassword = "";
+          sessionStorage.removeItem("diafond_admin_pass");
+          adminStatusFilter = "PUBLIC";
+          updateAdminUI();
+          renderCatalog();
+        }
+        return;
+      }
+      const pass = prompt("Введите пароль администратора:");
+      if (!pass) return;
+      await tryAdminLogin(pass.trim(), true);
     }
 
-    function updateAdminUI() {
-      const btn = document.getElementById("adminToggleBtn");
-      const keysBtn = document.getElementById("aiKeysBtn");
-      const tabs = document.getElementById("adminStatusTabs");
-      const frameActs = document.getElementById("adminFrameActions");
-      const editor = document.getElementById("adminFilmEditor");
-
-      if (isAdmin) {
-        btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 text-white";
-        btn.innerText = "🛠️ Админка: ВКЛ";
-        keysBtn.classList.remove("hidden");
-        tabs.classList.remove("hidden");
-        frameActs.classList.remove("hidden");
-        editor.classList.remove("hidden");
-        renderStatusTabs();
-      } else {
-        btn.className = "px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-800 hover:bg-stone-700 text-stone-300 border border-stone-700";
-        btn.innerText = "⚙️ Управление";
-        keysBtn.classList.add("hidden");
-        tabs.classList.add("hidden");
-        frameActs.classList.add("hidden");
-        editor.classList.add("hidden");
+    async function tryAdminLogin(pass, showAlerts = false) {
+      try {
+        const res = await sbFetch("rpc/admin_login", {
+          method: "POST",
+          body: JSON.stringify({ pass_input: pass })
+        });
+        if (res && res.ok) {
+          isAdmin = true;
+          adminPassword = pass;
+          sessionStorage.setItem("diafond_admin_pass", pass);
+          adminSecrets.hf_token = res.hf_token || "";
+          adminSecrets.gcp_credentials = res.gcp_credentials || "";
+          updateAdminUI();
+          renderCatalog();
+          if (showAlerts) alert("✅ Вы успешно вошли! Ключи реставрации загружены из базы Supabase.");
+        } else {
+          if (showAlerts) alert("❌ Неверный пароль!");
+        }
+      } catch (e) {
+        if (showAlerts) alert("Ошибка входа (проверьте, что вы выполнили SQL-скрипт Шага 1 в Supabase): " + e.message);
       }
     }
 
-    function canonicalPublicStatus(st) {
+    function updateAdminUI() {
+      const loginBtn = document.getElementById("loginBtn");
+      const secBtn = document.getElementById("adminSettingsBtn");
+      const adminBar = document.getElementById("adminBar");
+      const playerAdmin = document.getElementById("adminPlayerControls");
+
+      if (isAdmin) {
+        loginBtn.innerText = "Выйти (Админ)";
+        loginBtn.className = "px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#d99b26] text-[#18120e]";
+        secBtn.classList.remove("hidden");
+        adminBar.classList.remove("hidden");
+        playerAdmin.classList.remove("hidden");
+        renderStatusTabs();
+      } else {
+        loginBtn.innerText = "Войти";
+        loginBtn.className = "px-4 py-1.5 rounded-xl text-sm font-medium bg-[#2a2017] hover:bg-[#35281d] text-[#e6ccb2] border border-[#4a3728]";
+        secBtn.classList.add("hidden");
+        adminBar.classList.add("hidden");
+        playerAdmin.classList.add("hidden");
+      }
+    }
+
+    function openSecretsModal() {
+      document.getElementById("secHfToken").value = adminSecrets.hf_token || "";
+      document.getElementById("secGcpCreds").value = adminSecrets.gcp_credentials || "";
+      document.getElementById("secNewPass").value = "";
+      document.getElementById("secretsModal").classList.remove("hidden");
+    }
+    function closeSecretsModal() { document.getElementById("secretsModal").classList.add("hidden"); }
+
+    async function saveSecretsToDb() {
+      const newHf = document.getElementById("secHfToken").value.trim();
+      const newGcp = document.getElementById("secGcpCreds").value.trim();
+      const newPass = document.getElementById("secNewPass").value.trim();
+      try {
+        const res = await sbFetch("rpc/admin_save_secrets", {
+          method: "POST",
+          body: JSON.stringify({
+            pass_input: adminPassword,
+            new_hf: newHf,
+            new_gcp: newGcp,
+            new_pass: newPass || null
+          })
+        });
+        if (res && res.ok) {
+          adminSecrets.hf_token = newHf;
+          adminSecrets.gcp_credentials = newGcp;
+          if (newPass) {
+            adminPassword = newPass;
+            sessionStorage.setItem("diafond_admin_pass", newPass);
+          }
+          closeSecretsModal();
+          alert("✅ Ключи надежно сохранены в базе Supabase!");
+        } else {
+          alert("Ошибка сохранения: " + JSON.stringify(res));
+        }
+      } catch (e) { alert("Ошибка: " + e.message); }
+    }
+
+    // =========================================================================
+    // 3. ЛОГИКА ВЕРСИЙ КАДРОВ, ОБЛОЖЕК И КАТАЛОГА
+    // =========================================================================
+    function isPublicRestoredStatus(st) {
       return ["restored", "done", "completed", "upscaled", "restored_paid"].includes(st);
+    }
+
+    // Возвращает только реально существующие версии для конкретного кадра
+    function getFrameVersionsInfo(frame) {
+      const versions = frame.frame_versions || [];
+      const isRestoredUrl = (u) => u && !u.includes("/originals/");
+
+      const origVer = versions.find(v => v.version_type === "original") ||
+                      versions.find(v => v.version_type === "nanobanana" && (v.image_url || "").includes("/originals/"));
+      const originalUrl = (origVer ? origVer.image_url : null) || frame.original_url || "";
+
+      const availableRestored = [];
+      const vNano = versions.find(v => v.version_type === "nanobanana" && isRestoredUrl(v.image_url));
+      const vFlux = versions.find(v => v.version_type === "flux2" && isRestoredUrl(v.image_url));
+      const vUpsc = versions.find(v => v.version_type === "upscaled" && isRestoredUrl(v.image_url));
+
+      if (vNano) availableRestored.push({ type: "nanobanana", label: "Gemini 3.1", url: vNano.image_url });
+      if (vFlux) availableRestored.push({ type: "flux2", label: "FLUX.2", url: vFlux.image_url });
+      if (vUpsc) availableRestored.push({ type: "upscaled", label: "Upscaled", url: vUpsc.image_url });
+
+      return { originalUrl, availableRestored };
+    }
+
+    function pickBestUrl(frame, mode = "restored", engine = "auto") {
+      const { originalUrl, availableRestored } = getFrameVersionsInfo(frame);
+      if (mode === "original" || availableRestored.length === 0) {
+        return { url: originalUrl, isRestored: false, hasBoth: false };
+      }
+      const chosen = availableRestored.find(v => v.type === engine) || availableRestored[0];
+      return {
+        url: chosen.url,
+        isRestored: true,
+        hasBoth: Boolean(originalUrl && chosen.url && originalUrl !== chosen.url)
+      };
+    }
+
+    async function initApp() {
+      if (adminPassword) await tryAdminLogin(adminPassword, false);
+      updateAdminUI();
+
+      try {
+        allFilms = await sbFetch("filmstrips?select=*&order=title.asc");
+
+        // Заполняем компактные фильтры Художников и Годов
+        const artists = [...new Set(allFilms.map(f => f.artist).filter(Boolean))].sort();
+        document.getElementById("artistFilter").innerHTML = '<option value="">Все художники</option>' +
+          artists.map(a => `<option value="${a}">${a}</option>`).join("");
+
+        const years = [...new Set(allFilms.map(f => f.year).filter(Boolean))].sort((a, b) => a - b);
+        document.getElementById("yearFilter").innerHTML = '<option value="">Все годы</option>' +
+          years.map(y => `<option value="${y}">${y}</option>`).join("");
+
+        // Загружаем первые кадры (0..5) для умного выбора сюжетной обложки (без полос ТУ!)
+        const sampleFrames = await sbFetch("frames?select=filmstrip_id,frame_number,original_url,frame_versions(version_type,image_url)&frame_number=in.(0,1,2,3,4,5)&order=frame_number.asc");
+        const byFilm = {};
+        sampleFrames.forEach(fr => {
+          if (!byFilm[fr.filmstrip_id]) byFilm[fr.filmstrip_id] = [];
+          byFilm[fr.filmstrip_id].push(fr);
+        });
+
+        allFilms.forEach(f => {
+          const list = byFilm[f.id] || [];
+          // Если в extra_data сохранен номер кадра обложки — берем его, иначе берем кадр №4 или №3 (чтобы пропустить цветные полосы ТУ на кадрах 0-2!)
+          const savedCoverNum = f.extra_data && f.extra_data.cover_frame != null ? Number(f.extra_data.cover_frame) : null;
+          let targetFrame = null;
+
+          if (savedCoverNum !== null) {
+            targetFrame = list.find(x => x.frame_number === savedCoverNum);
+          }
+          // Если кадр 0 был специально помечен как "Обложка"
+          if (!targetFrame) {
+            targetFrame = list.find(x => x.frame_number === 4) || list.find(x => x.frame_number === 3) || list[0];
+          }
+
+          const coverUrl = targetFrame ? pickBestUrl(targetFrame, "restored").url : "";
+          filmStatsMap[f.id] = { coverUrl };
+        });
+
+        if (isAdmin) renderStatusTabs();
+        renderCatalog();
+      } catch (e) {
+        document.getElementById("filmsCountLabel").innerText = "Ошибка: " + e.message;
+      }
     }
 
     function renderStatusTabs() {
@@ -309,11 +583,11 @@
       allFilms.forEach(f => {
         const st = f.status || "pending";
         counts[st] = (counts[st] || 0) + 1;
-        if (canonicalPublicStatus(st)) counts.PUBLIC++;
+        if (isPublicRestoredStatus(st)) counts.PUBLIC++;
       });
 
-      const items = [
-        { id: "PUBLIC", label: `На витрине (${counts.PUBLIC})` },
+      const tabs = [
+        { id: "PUBLIC", label: `Витрина (${counts.PUBLIC})` },
         { id: "waiting_approval", label: `На проверке (${counts.waiting_approval || 0})` },
         { id: "ready_ai", label: `Готовы к ИИ (${counts.ready_ai || 0})` },
         { id: "downloaded", label: `Скачаны (${counts.downloaded || 0})` },
@@ -321,110 +595,55 @@
         { id: "ALL", label: `Все (${counts.ALL})` }
       ];
 
-      document.getElementById("statusButtons").innerHTML = items.map(it => `
-        <button onclick="adminStatusFilter='${it.id}'; renderStatusTabs(); renderCatalog();" 
-          class="px-2.5 py-1 rounded-lg text-xs font-medium transition ${adminStatusFilter === it.id ? 'bg-amber-600 text-white' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'}">
-          ${it.label}
+      document.getElementById("adminStatusTabs").innerHTML = tabs.map(t => `
+        <button onclick="adminStatusFilter='${t.id}'; renderStatusTabs(); renderCatalog();"
+          class="px-3 py-1 rounded-xl text-xs font-medium transition ${adminStatusFilter === t.id ? 'bg-[#d99b26] text-[#18120e] font-bold' : 'bg-[#16110d] text-[#cfc4b6] border border-[#382b20]'}">
+          ${t.label}
         </button>
       `).join("");
     }
 
-    function pickFrameUrl(frame, mode = "restored", preferredEngine = "auto") {
-      const versions = frame.frame_versions || [];
-      const origVer = versions.find(v => v.version_type === "original") ||
-                      versions.find(v => v.version_type === "nanobanana" && (v.image_url || "").includes("/originals/"));
-      const origUrl = (origVer ? origVer.image_url : null) || frame.original_url || "";
-
-      if (mode === "original") return { url: origUrl, label: "Оригинал" };
-
-      const isRestoredUrl = (u) => u && !u.includes("/originals/");
-      const vNano = versions.find(v => v.version_type === "nanobanana" && isRestoredUrl(v.image_url));
-      const vFlux = versions.find(v => v.version_type === "flux2" && isRestoredUrl(v.image_url));
-      const vUpsc = versions.find(v => v.version_type === "upscaled" && isRestoredUrl(v.image_url));
-
-      if (preferredEngine === "nanobanana" && vNano) return { url: vNano.image_url, label: "Gemini 3.1" };
-      if (preferredEngine === "flux2" && vFlux) return { url: vFlux.image_url, label: "FLUX.2" };
-      if (preferredEngine === "upscaled" && vUpsc) return { url: vUpsc.image_url, label: "Upscaled" };
-
-      if (vNano) return { url: vNano.image_url, label: "Gemini 3.1" };
-      if (vFlux) return { url: vFlux.image_url, label: "FLUX.2" };
-      if (vUpsc) return { url: vUpsc.image_url, label: "Upscaled" };
-
-      return { url: origUrl, label: "Оригинал (нет ИИ)" };
-    }
-
-    async function initApp() {
-      updateAdminUI();
-      try {
-        allFilms = await sbFetch("filmstrips?select=*&order=title.asc");
-        const studios = [...new Set(allFilms.map(f => f.studio).filter(Boolean))].sort();
-        document.getElementById("studioFilter").innerHTML = '<option value="">Все студии</option>' + studios.map(s => `<option value="${s}">${s}</option>`).join("");
-
-        const coverFrames = await sbFetch("frames?select=filmstrip_id,frame_number,original_url,frame_versions(version_type,image_url)&frame_number=in.(0,1,2,3)&order=frame_number.asc");
-        const grouped = {};
-        coverFrames.forEach(fr => {
-          if (!grouped[fr.filmstrip_id]) grouped[fr.filmstrip_id] = [];
-          grouped[fr.filmstrip_id].push(fr);
-        });
-
-        Object.keys(grouped).forEach(fid => {
-          const list = grouped[fid];
-          let chosenUrl = "";
-          for (const fr of list) {
-            const picked = pickFrameUrl(fr, "restored", "auto");
-            if (picked.url && !picked.url.includes("/originals/")) {
-              chosenUrl = picked.url;
-              break;
-            }
-          }
-          if (!chosenUrl && list.length > 0) {
-            const fb = list.find(x => x.frame_number === 1) || list[0];
-            chosenUrl = pickFrameUrl(fb, "original").url;
-          }
-          coversMap[fid] = chosenUrl;
-        });
-
-        if (isAdmin) renderStatusTabs();
-        renderCatalog();
-      } catch (err) {
-        document.getElementById("catalogStatusText").innerText = "Ошибка загрузки: " + err.message;
-      }
+    function resetFilters() {
+      document.getElementById("searchInput").value = "";
+      document.getElementById("artistFilter").value = "";
+      document.getElementById("yearFilter").value = "";
+      renderCatalog();
     }
 
     function renderCatalog() {
       const q = (document.getElementById("searchInput").value || "").toLowerCase().trim();
-      const studio = document.getElementById("studioFilter").value;
+      const artist = document.getElementById("artistFilter").value;
+      const year = document.getElementById("yearFilter").value;
 
       const filtered = allFilms.filter(f => {
         if (!isAdmin) {
-          if (!canonicalPublicStatus(f.status)) return false;
+          if (!isPublicRestoredStatus(f.status)) return false;
         } else {
-          if (adminStatusFilter === "PUBLIC" && !canonicalPublicStatus(f.status)) return false;
+          if (adminStatusFilter === "PUBLIC" && !isPublicRestoredStatus(f.status)) return false;
           if (adminStatusFilter !== "ALL" && adminStatusFilter !== "PUBLIC" && (f.status || "pending") !== adminStatusFilter) return false;
         }
-        if (studio && f.studio !== studio) return false;
+        if (artist && f.artist !== artist) return false;
+        if (year && String(f.year) !== String(year)) return false;
         if (q) {
-          const hay = `${f.title || ""} ${f.artist || ""} ${f.author || ""} ${f.year || ""}`.toLowerCase();
+          const hay = `${f.title || ""} ${f.artist || ""} ${f.author || ""}`.toLowerCase();
           if (!hay.includes(q)) return false;
         }
         return true;
       });
 
-      document.getElementById("catalogStatusText").innerText = `Показано диафильмов: ${filtered.length}`;
+      document.getElementById("filmsCountLabel").innerText = `${filtered.length} лент`;
       document.getElementById("filmsGrid").innerHTML = filtered.map(f => {
-        const cov = coversMap[f.id] || "";
-        const badgeColor = canonicalPublicStatus(f.status) ? "bg-emerald-600/90" : (f.status === "waiting_approval" ? "bg-amber-600/90" : "bg-stone-700/90");
+        const st = filmStatsMap[f.id] || {};
         return `
           <div onclick="openFilm('${f.id}')" class="film-card rounded-2xl overflow-hidden cursor-pointer flex flex-col">
-            <div class="frame-box relative overflow-hidden bg-stone-950">
-              ${cov ? `<img src="${cov}" loading="lazy" class="w-full h-full object-cover" />` : `<div class="w-full h-full flex items-center justify-center text-stone-600 text-xs">Нет обложки</div>`}
-              ${isAdmin ? `<span class="absolute top-2 right-2 px-2 py-0.5 rounded text-[10px] font-semibold text-white ${badgeColor}">${f.status || 'pending'}</span>` : ``}
-              ${f.year ? `<span class="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/75 text-[11px] text-amber-300">${f.year} г.</span>` : ``}
+            <div class="frame-aspect relative overflow-hidden">
+              ${st.coverUrl ? `<img src="${st.coverUrl}" loading="lazy" class="w-full h-full object-cover" onerror="this.style.opacity=0.2" />` : `<div class="w-full h-full flex items-center justify-center text-xs text-[#6e6256]">Нет обложки</div>`}
+              ${isAdmin ? `<span class="absolute top-2.5 right-2.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-black/80 text-[#d99b26] border border-[#d99b26]/40">${f.status || 'pending'}</span>` : ``}
             </div>
-            <div class="p-3.5 flex-1 flex flex-col justify-between">
-              <div>
-                <h3 class="font-bold text-sm line-clamp-2 text-stone-100">${f.title || "Без названия"}</h3>
-                <p class="text-xs text-stone-400 mt-1 line-clamp-1">${[f.artist ? `Худ. ${f.artist}` : "", f.studio || ""].filter(Boolean).join(" • ")}</p>
+            <div class="p-4">
+              <h3 class="font-serif-title text-xl font-semibold text-[#f5efe6] leading-snug">${f.title || "Без названия"}</h3>
+              <div class="flex items-center justify-between text-xs text-[#d99b26] mt-1.5">
+                <span>${[f.artist, f.year ? `${f.year} г.` : ""].filter(Boolean).join(" • ") || "Восстановленная лента"}</span>
               </div>
             </div>
           </div>
@@ -432,79 +651,116 @@
       }).join("");
     }
 
+    function showSection(sec) {
+      document.getElementById("catalogSection").classList.toggle("hidden", sec !== "catalog");
+      document.getElementById("aboutSection").classList.toggle("hidden", sec !== "about");
+      document.getElementById("playerSection").classList.toggle("hidden", sec !== "player");
+
+      document.getElementById("navCatalogBtn").className = sec === "catalog" || sec === "player"
+        ? "text-sm font-medium text-[#d99b26] border-b-2 border-[#d99b26] pb-1"
+        : "text-sm font-medium text-[#9e9081] hover:text-[#f3ece2] pb-1";
+      document.getElementById("navAboutBtn").className = sec === "about"
+        ? "text-sm font-medium text-[#d99b26] border-b-2 border-[#d99b26] pb-1"
+        : "text-sm font-medium text-[#9e9081] hover:text-[#f3ece2] pb-1";
+    }
+
+    // =========================================================================
+    // 4. ПЛЕЕР, СЕТКА МИНИАТЮР И ПОЛНОЭКРАННЫЙ РЕЖИМ НА ТЕЛЕФОНЕ
+    // =========================================================================
     async function openFilm(filmId) {
       currentFilm = allFilms.find(f => f.id === filmId);
       if (!currentFilm) return;
 
-      document.getElementById("catalogView").classList.add("hidden");
-      document.getElementById("playerView").classList.remove("hidden");
-      document.getElementById("playerTitle").innerText = currentFilm.title || "";
-      document.getElementById("playerMeta").innerText = [
-        currentFilm.year ? `${currentFilm.year} г.` : "",
-        currentFilm.studio ? `Студия: ${currentFilm.studio}` : "",
+      showSection("player");
+      document.getElementById("playerTitleTop").innerText = currentFilm.title || "";
+      document.getElementById("playerMetaLine").innerText = [
         currentFilm.artist ? `Художник: ${currentFilm.artist}` : "",
-        currentFilm.author ? `Автор: ${currentFilm.author}` : ""
+        currentFilm.author ? `Автор: ${currentFilm.author}` : "",
+        currentFilm.year ? `${currentFilm.year} г.` : "",
+        currentFilm.studio || ""
       ].filter(Boolean).join(" • ");
 
-      document.getElementById("editStatus").value = currentFilm.status || "pending";
-      document.getElementById("editArtist").value = currentFilm.artist || "";
-      document.getElementById("editYear").value = currentFilm.year || "";
-      document.getElementById("editCustomPrompt").value = currentFilm.custom_prompt || "";
-      document.getElementById("editOriginalLink").href = currentFilm.original_url || "#";
+      if (isAdmin) {
+        document.getElementById("editFilmStatus").value = currentFilm.status || "pending";
+        document.getElementById("editFilmArtist").value = currentFilm.artist || "";
+        document.getElementById("editFilmYear").value = currentFilm.year || "";
+        document.getElementById("editFilmPrompt").value = currentFilm.custom_prompt || "";
+      }
 
       const rawFrames = await sbFetch(`frames?filmstrip_id=eq.${filmId}&select=*,frame_versions(*)&order=frame_number.asc`);
       currentFrames = isAdmin ? rawFrames : rawFrames.filter(fr => fr.is_active !== false);
       currentFrameIdx = 0;
+      viewMode = "restored";
       updatePlayerFrame();
-      renderThumbs();
+      renderThumbsGrid();
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
-    function closePlayer() {
-      document.getElementById("playerView").classList.add("hidden");
-      document.getElementById("catalogView").classList.remove("hidden");
-    }
+    function closePlayer() { showSection("catalog"); }
 
     function setViewMode(m) {
       viewMode = m;
-      document.getElementById("btnModeRestored").className = m === "restored"
-        ? "px-3 py-1 rounded-md text-xs font-semibold bg-amber-600 text-white"
-        : "px-3 py-1 rounded-md text-xs font-semibold text-stone-400";
-      document.getElementById("btnModeOriginal").className = m === "original"
-        ? "px-3 py-1 rounded-md text-xs font-semibold bg-amber-600 text-white"
-        : "px-3 py-1 rounded-md text-xs font-semibold text-stone-400";
+      const activeCls = "px-4 py-1 rounded-full text-xs font-semibold bg-[#d99b26] text-[#18120e] transition";
+      const idleCls = "px-4 py-1 rounded-full text-xs font-medium text-[#cfc4b6] hover:text-white transition";
+      document.getElementById("pillRestored").className = m === "restored" ? activeCls : idleCls;
+      document.getElementById("pillOriginal").className = m === "original" ? activeCls : idleCls;
+      document.getElementById("fsPillRestored").className = m === "restored" ? activeCls : idleCls;
+      document.getElementById("fsPillOriginal").className = m === "original" ? activeCls : idleCls;
+      updatePlayerFrame();
+    }
+
+    function onVersionSelectChange() {
+      preferredEngine = document.getElementById("availableVersionSelect").value;
       updatePlayerFrame();
     }
 
     function updatePlayerFrame() {
-      if (!currentFrames.length) {
-        document.getElementById("playerImg").src = "";
-        document.getElementById("frameCounter").innerText = "Нет кадров в базе";
-        return;
-      }
+      if (!currentFrames.length) return;
       const fr = currentFrames[currentFrameIdx];
-      const engine = document.getElementById("engineSelect").value;
-      const picked = pickFrameUrl(fr, viewMode, engine);
+      const info = getFrameVersionsInfo(fr);
 
-      document.getElementById("playerImg").src = picked.url;
-      document.getElementById("frameCounter").innerText = `Кадр №${fr.frame_number} (${currentFrameIdx + 1} / ${currentFrames.length})`;
-      document.getElementById("frameBadge").innerText = `${picked.label}${fr.is_active === false ? ' • [СКРЫТ]' : ''}`;
+      // Показываем селектор движков ТОЛЬКО если у кадра реально больше 1 ИИ-версии
+      const verSel = document.getElementById("availableVersionSelect");
+      if (info.availableRestored.length > 1) {
+        verSel.classList.remove("hidden");
+        verSel.innerHTML = info.availableRestored.map(v => `<option value="${v.type}" ${v.type === preferredEngine ? 'selected' : ''}>${v.label}</option>`).join("");
+      } else {
+        verSel.classList.add("hidden");
+      }
+
+      const picked = pickBestUrl(fr, viewMode, preferredEngine);
+      const mainImg = document.getElementById("mainFrameImg");
+      const fsImg = document.getElementById("fsImg");
+
+      // Защита от отсутствующих файлов: если реставрация не загрузилась, подставляем оригинал
+      mainImg.onerror = () => { if (mainImg.src !== info.originalUrl && info.originalUrl) mainImg.src = info.originalUrl; };
+      mainImg.src = picked.url;
+      fsImg.src = picked.url;
+
+      // Показываем тумблер Реставрация/Оригинал только если реально существуют обе картинки
+      document.getElementById("floatingModePill").classList.toggle("hidden", !picked.hasBoth);
+
+      const countStr = `${currentFrameIdx + 1} / ${currentFrames.length}`;
+      document.getElementById("frameCounterText").innerText = countStr;
+      document.getElementById("fsCounter").innerText = countStr;
+
+      if (isAdmin) {
+        document.getElementById("adminCurrentFrameLabel").innerText = `Кадр #${fr.frame_number} ${fr.is_active === false ? '(СКРЫТ)' : ''}`;
+      }
       highlightActiveThumb();
     }
 
     function prevFrame() { if (currentFrameIdx > 0) { currentFrameIdx--; updatePlayerFrame(); } }
     function nextFrame() { if (currentFrameIdx < currentFrames.length - 1) { currentFrameIdx++; updatePlayerFrame(); } }
 
-    function renderThumbs() {
-      document.getElementById("thumbsStrip").innerHTML = currentFrames.map((fr, idx) => {
-        const picked = pickFrameUrl(fr, "restored", "auto");
+    function renderThumbsGrid() {
+      document.getElementById("thumbsGrid").innerHTML = currentFrames.map((fr, idx) => {
+        const picked = pickBestUrl(fr, "restored", "auto");
+        const origUrl = getFrameVersionsInfo(fr).originalUrl;
         return `
-          <div id="thumb_${idx}" onclick="currentFrameIdx=${idx}; updatePlayerFrame();" 
-            class="flex-shrink-0 w-20 rounded-lg overflow-hidden border-2 cursor-pointer transition ${fr.is_active === false ? 'opacity-40' : ''}">
-            <div class="frame-box bg-stone-950">
-              <img src="${picked.url}" loading="lazy" class="w-full h-full object-cover" />
-            </div>
-            <div class="text-[10px] text-center py-0.5 bg-stone-900 font-mono">#${fr.frame_number}</div>
+          <div id="thumb_${idx}" onclick="currentFrameIdx=${idx}; updatePlayerFrame();"
+            class="frame-aspect rounded-xl overflow-hidden border-2 cursor-pointer transition relative ${fr.is_active === false ? 'opacity-35' : ''}">
+            <img src="${picked.url}" loading="lazy" class="w-full h-full object-cover" onerror="if(this.src!=='${origUrl}')this.src='${origUrl}'" />
           </div>
         `;
       }).join("");
@@ -514,103 +770,91 @@
     function highlightActiveThumb() {
       currentFrames.forEach((_, idx) => {
         const el = document.getElementById(`thumb_${idx}`);
-        if (el) el.className = `flex-shrink-0 w-20 rounded-lg overflow-hidden border-2 cursor-pointer transition ${idx === currentFrameIdx ? 'border-amber-500 scale-105' : 'border-stone-800'}`;
+        if (el) {
+          el.className = `frame-aspect rounded-xl overflow-hidden border-2 cursor-pointer transition relative ${idx === currentFrameIdx ? 'border-[#d99b26] ring-2 ring-[#d99b26]/40' : 'border-[#33271d]'}`;
+        }
       });
     }
 
-    // Свайпы пальцем влево/вправо на экране телефона
-    let touchStartX = 0;
-    const touchEl = document.getElementById("touchArea");
-    touchEl.addEventListener("touchstart", e => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
-    touchEl.addEventListener("touchend", e => {
-      const dx = e.changedTouches[0].screenX - touchStartX;
-      if (Math.abs(dx) > 45) { dx < 0 ? nextFrame() : prevFrame(); }
-    }, { passive: true });
+    // Полноэкранный режим на телефоне
+    function openFullscreenModal() {
+      const modal = document.getElementById("fullscreenModal");
+      modal.classList.remove("hidden");
+      if (modal.requestFullscreen) modal.requestFullscreen().catch(() => {});
+    }
+    function closeFullscreenModal() {
+      document.getElementById("fullscreenModal").classList.add("hidden");
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    }
+
+    // Свайпы пальцем в плеере и в полном экране
+    function attachSwipe(elId) {
+      let startX = 0;
+      const el = document.getElementById(elId);
+      el.addEventListener("touchstart", e => { startX = e.changedTouches[0].screenX; }, { passive: true });
+      el.addEventListener("touchend", e => {
+        const dx = e.changedTouches[0].screenX - startX;
+        if (Math.abs(dx) > 40) { dx < 0 ? nextFrame() : prevFrame(); }
+      }, { passive: true });
+    }
+    attachSwipe("mainFrameTouchArea");
+    attachSwipe("fsTouchArea");
 
     // =========================================================================
-    // 2. УПРАВЛЕНИЕ БАЗОЙ И ОБЛОЖКОЙ С ТЕЛЕФОНА
+    // 5. АДМИН-ФУНКЦИИ И ОБЛАЧНАЯ РЕСТАВРАЦИЯ GEMINI 3.1
     // =========================================================================
     async function setCurrentFrameAsCover() {
-      if (!currentFrames.length) return;
+      if (!isAdmin || !currentFrames.length || !currentFilm) return;
       const fr = currentFrames[currentFrameIdx];
-      const picked = pickFrameUrl(fr, "restored", "auto");
-      const frame0 = currentFrames.find(f => f.frame_number === 0);
-      if (!frame0) return alert("В этом диафильме нет кадра №0 в базе!");
+      const picked = pickBestUrl(fr, "restored", "auto");
+      const newExtra = { ...(currentFilm.extra_data || {}), cover_frame: fr.frame_number };
 
       try {
-        await sbFetch("frame_versions?on_conflict=frame_id,version_type", {
-          method: "POST",
-          headers: { "Prefer": "resolution=merge-duplicates,return=representation" },
-          body: JSON.stringify({
-            frame_id: frame0.id,
-            version_type: "nanobanana",
-            image_url: picked.url,
-            version_label: `Обложка (кадр #${fr.frame_number})`
-          })
+        await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ extra_data: newExtra })
         });
-        const v0 = frame0.frame_versions.find(v => v.version_type === "nanobanana");
-        if (v0) v0.image_url = picked.url; else frame0.frame_versions.push({ version_type: "nanobanana", image_url: picked.url });
-        coversMap[currentFilm.id] = picked.url;
-        renderThumbs();
-        alert(`✅ Кадр #${fr.frame_number} установлен как обложка!`);
+        currentFilm.extra_data = newExtra;
+        filmStatsMap[currentFilm.id] = { coverUrl: picked.url };
+        renderCatalog();
+        alert(`✅ Кадр #${fr.frame_number} установлен как обложка диафильма!`);
       } catch (e) { alert("Ошибка: " + e.message); }
     }
 
     async function toggleCurrentFrameActive() {
-      if (!currentFrames.length) return;
+      if (!isAdmin || !currentFrames.length) return;
       const fr = currentFrames[currentFrameIdx];
       const nextVal = fr.is_active === false ? true : false;
       try {
         await sbFetch(`frames?id=eq.${fr.id}`, { method: "PATCH", body: JSON.stringify({ is_active: nextVal }) });
         fr.is_active = nextVal;
         updatePlayerFrame();
-        renderThumbs();
+        renderThumbsGrid();
       } catch (e) { alert("Ошибка: " + e.message); }
     }
 
-    async function saveFilmChanges() {
-      if (!currentFilm) return;
+    async function saveFilmMeta() {
+      if (!isAdmin || !currentFilm) return;
       const payload = {
-        status: document.getElementById("editStatus").value,
-        artist: document.getElementById("editArtist").value.trim() || null,
-        year: parseInt(document.getElementById("editYear").value) || null,
-        custom_prompt: document.getElementById("editCustomPrompt").value.trim() || null
+        status: document.getElementById("editFilmStatus").value,
+        artist: document.getElementById("editFilmArtist").value.trim() || null,
+        year: parseInt(document.getElementById("editFilmYear").value) || null,
+        custom_prompt: document.getElementById("editFilmPrompt").value.trim() || null
       };
       try {
         await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify(payload) });
         Object.assign(currentFilm, payload);
         renderStatusTabs();
         renderCatalog();
-        alert("✅ Сохранено в базе данных!");
+        alert("✅ Данные диафильма сохранены в БД!");
       } catch (e) { alert("Ошибка: " + e.message); }
     }
 
-    // =========================================================================
-    // 3. МОБИЛЬНОЕ ИИ-ЯДРО (VERTEX AI GEMINI 3.1 + HUGGING FACE UPLOAD)
-    // =========================================================================
-    function openKeysModal() {
-      document.getElementById("inputHfToken").value = localStorage.getItem("diafond_hf_token") || "";
-      document.getElementById("inputGcpCreds").value = localStorage.getItem("diafond_gcp_creds") || "";
-      document.getElementById("keysModal").classList.remove("hidden");
-    }
-    function closeKeysModal() { document.getElementById("keysModal").classList.add("hidden"); }
-    function saveKeysModal() {
-      localStorage.setItem("diafond_hf_token", document.getElementById("inputHfToken").value.trim());
-      localStorage.setItem("diafond_gcp_creds", document.getElementById("inputGcpCreds").value.trim());
-      closeKeysModal();
-      alert("✅ Ключи сохранены в памяти браузера телефона!");
-    }
-
-    // Генерация OAuth2 токена Google Cloud прямо в браузерах через WebCrypto (для списания бонусов ₪30)
     async function getVertexAccessToken(saJsonStr) {
       const sa = JSON.parse(saJsonStr);
       const pem = sa.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s+/g, "");
       const binaryDer = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
-      const cryptoKey = await crypto.subtle.importKey(
-        "pkcs8", binaryDer.buffer,
-        { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-        false, ["sign"]
-      );
+      const cryptoKey = await crypto.subtle.importKey("pkcs8", binaryDer.buffer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
       const b64url = (str) => btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
       const now = Math.floor(Date.now() / 1000);
       const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
@@ -629,28 +873,27 @@
         body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${header}.${claim}.${sig}`
       });
       const data = await res.json();
-      if (!data.access_token) throw new Error("Ошибка авторизации GCP: " + JSON.stringify(data));
+      if (!data.access_token) throw new Error("Ошибка токена GCP: " + JSON.stringify(data));
       return { token: data.access_token, projectId: sa.project_id || VERTEX_PROJECT_ID };
     }
 
-    async function callGeminiRestoreFrame(origUrl, styleType, customText = "") {
-      const creds = (localStorage.getItem("diafond_gcp_creds") || "").trim();
-      if (!creds) { openKeysModal(); throw new Error("Сначала укажите ключ Gemini или JSON сервисного аккаунта в '🔑 Ключи ИИ'"); }
+    async function callGeminiRestore(origUrl, styleType, customText = "") {
+      const creds = (adminSecrets.gcp_credentials || "").trim();
+      if (!creds) { openSecretsModal(); throw new Error("Укажите ключ Gemini/Vertex в '🔑 Ключи БД'"); }
 
-      // Скачиваем оригинал и переводим в base64
       const imgRes = await fetch(origUrl);
-      if (!imgRes.ok) throw new Error(`Ошибка скачивания оригинала (${imgRes.status})`);
+      if (!imgRes.ok) throw new Error(`Оригинал недоступен (${imgRes.status})`);
       const blob = await imgRes.blob();
       const base64Orig = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result.split(",")[1]);
-        reader.readAsDataURL(blob);
+        const r = new FileReader();
+        r.onloadend = () => resolve(r.result.split(",")[1]);
+        r.readAsDataURL(blob);
       });
 
       const styleMap = {
         "Gouache": "Technique: authentic mid-century Soviet gouache and watercolor on thick paper, tactile paper texture, visible brushstrokes.",
-        "Watercolor": "Technique: soft watercolor wash on textured paper, clean ink outlines.",
-        "Puppet": "Technique: puppet cinematography, miniature tabletop 3D diorama, tactile felt and wood textures, studio lighting.",
+        "Watercolor": "Technique: soft watercolor wash on textured paper, clean outlines.",
+        "Puppet": "Technique: puppet cinematography, miniature tabletop 3D diorama, tactile felt and wood textures.",
         "Lithography": "Technique: vintage offset lithography print with fine paper grain."
       };
 
@@ -663,24 +906,12 @@
       ].filter(Boolean).join(" ");
 
       const reqBody = {
-        contents: [{
-          role: "user",
-          parts: [
-            { inlineData: { mimeType: blob.type || "image/webp", data: base64Orig } },
-            { text: prompt }
-          ]
-        }],
-        generationConfig: {
-          responseModalities: ["IMAGE"],
-          temperature: 0.4,
-          topP: 0.95,
-          imageConfig: { aspectRatio: "4:3", imageSize: "1K" }
-        }
+        contents: [{ role: "user", parts: [{ inlineData: { mimeType: blob.type || "image/webp", data: base64Orig } }, { text: prompt }] }],
+        generationConfig: { responseModalities: ["IMAGE"], temperature: 0.4, topP: 0.95, imageConfig: { aspectRatio: "4:3", imageSize: "1K" } }
       };
 
       let apiUrl = "";
       let headers = { "Content-Type": "application/json" };
-
       if (creds.startsWith("{")) {
         const { token, projectId } = await getVertexAccessToken(creds);
         apiUrl = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/global/publishers/google/models/${GEMINI_MODEL}:generateContent`;
@@ -690,52 +921,45 @@
       }
 
       const res = await fetch(apiUrl, { method: "POST", headers, body: JSON.stringify(reqBody) });
-      if (!res.ok) throw new Error(`Ошибка Gemini API (${res.status}): ${await res.text()}`);
+      if (!res.ok) throw new Error(`Ошибка Gemini (${res.status}): ${await res.text()}`);
       const json = await res.json();
-
       const parts = json?.candidates?.[0]?.content?.parts || [];
       const imgPart = parts.find(p => p.inlineData && p.inlineData.data);
-      if (!imgPart) throw new Error("ИИ не вернул картинку (возможно, фильтр безопасности)");
+      if (!imgPart) throw new Error("ИИ не вернул изображение");
 
-      // Конвертируем ответ ИИ в настоящий сжатый WebP прямо в браузере телефона
       return await new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          canvas.getContext("2d").drawImage(img, 0, 0);
-          canvas.toBlob(webpBlob => webpBlob ? resolve(webpBlob) : reject(new Error("Ошибка сжатия WebP")), "image/webp", 0.92);
+          const c = document.createElement("canvas");
+          c.width = img.width; c.height = img.height;
+          c.getContext("2d").drawImage(img, 0, 0);
+          c.toBlob(b => b ? resolve(b) : reject(new Error("Ошибка WebP")), "image/webp", 0.92);
         };
         img.onerror = reject;
         img.src = `data:${imgPart.inlineData.mimeType || 'image/png'};base64,${imgPart.inlineData.data}`;
       });
     }
 
-    // Реставрация одного текущего кадра с телефона
     async function restoreSingleCurrentFrame() {
-      if (!currentFrames.length || !currentFilm) return;
-      const hfToken = (localStorage.getItem("diafond_hf_token") || "").trim();
-      if (!hfToken) return openKeysModal();
+      if (!isAdmin || !currentFrames.length || !currentFilm) return;
+      if (!adminSecrets.hf_token) return openSecretsModal();
 
       const fr = currentFrames[currentFrameIdx];
-      const origUrl = pickFrameUrl(fr, "original").url;
-      const style = document.getElementById("aiStyle").value;
-      const customP = document.getElementById("editCustomPrompt").value.trim();
-
-      const logBox = document.getElementById("aiProgressBox");
+      const origUrl = getFrameVersionsInfo(fr).originalUrl;
+      const style = document.getElementById("aiStyleSelect").value;
+      const customP = document.getElementById("editFilmPrompt").value.trim();
+      const logBox = document.getElementById("aiLogBox");
       logBox.classList.remove("hidden");
-      logBox.innerText = `⏳ Реставрирую кадр #${fr.frame_number} через Gemini 3.1...`;
+      logBox.innerText = `⏳ Реставрирую кадр #${fr.frame_number}...`;
 
       try {
-        const webpBlob = await callGeminiRestoreFrame(origUrl, style, customP);
-        logBox.innerText = `📤 Загружаю кадр #${fr.frame_number} на Hugging Face...`;
-
+        const webpBlob = await callGeminiRestore(origUrl, style, customP);
+        logBox.innerText = `📤 Загружаю на Hugging Face...`;
         const { uploadFiles } = await import("https://esm.sh/@huggingface/hub");
         const pathInRepo = `nanobanana_paid/${currentFilm.id}/f_${String(fr.frame_number).padStart(3, "0")}.webp`;
         await uploadFiles({
           repo: { type: "dataset", name: HF_REPO },
-          accessToken: hfToken,
+          accessToken: adminSecrets.hf_token,
           commitTitle: `Restore frame #${fr.frame_number} of ${currentFilm.title}`,
           files: [{ path: pathInRepo, content: webpBlob }]
         });
@@ -744,47 +968,31 @@
         await sbFetch("frame_versions?on_conflict=frame_id,version_type", {
           method: "POST",
           headers: { "Prefer": "resolution=merge-duplicates,return=representation" },
-          body: JSON.stringify({
-            frame_id: fr.id,
-            version_type: "nanobanana",
-            image_url: hfUrl,
-            version_label: "Реставрация Gemini 3.1"
-          })
+          body: JSON.stringify({ frame_id: fr.id, version_type: "nanobanana", image_url: hfUrl, version_label: "Реставрация Gemini 3.1" })
         });
 
-        const cacheBustedUrl = `${hfUrl}?t=${Date.now()}`;
-        const existingV = fr.frame_versions.find(v => v.version_type === "nanobanana");
-        if (existingV) existingV.image_url = cacheBustedUrl;
-        else fr.frame_versions.push({ version_type: "nanobanana", image_url: cacheBustedUrl });
+        const bustUrl = `${hfUrl}?t=${Date.now()}`;
+        const ex = fr.frame_versions.find(v => v.version_type === "nanobanana");
+        if (ex) ex.image_url = bustUrl; else fr.frame_versions.push({ version_type: "nanobanana", image_url: bustUrl });
 
         setViewMode("restored");
-        renderThumbs();
-        logBox.innerText = `✅ Кадр #${fr.frame_number} успешно обновлен!`;
-      } catch (e) {
-        logBox.innerText = `❌ ${e.message}`;
-      }
+        renderThumbsGrid();
+        logBox.innerText = `✅ Кадр #${fr.frame_number} готов!`;
+      } catch (e) { logBox.innerText = `❌ ${e.message}`; }
     }
 
-    // Пакетная реставрация диафильма (1 коммит на Hugging Face)
     async function runBatchRestoration() {
-      if (!currentFrames.length || !currentFilm) return;
-      const hfToken = (localStorage.getItem("diafond_hf_token") || "").trim();
-      if (!hfToken) return openKeysModal();
+      if (!isAdmin || !currentFrames.length || !currentFilm) return;
+      if (!adminSecrets.hf_token) return openSecretsModal();
 
-      const rangeStr = document.getElementById("aiFramesRange").value.trim();
-      const coverNum = parseInt(document.getElementById("aiCoverNum").value) || 0;
-      const style = document.getElementById("aiStyle").value;
-      const customP = document.getElementById("editCustomPrompt").value.trim();
-
-      let targetFrames = [];
+      const rangeStr = document.getElementById("aiFramesInput").value.trim();
+      const style = document.getElementById("aiStyleSelect").value;
+      const customP = document.getElementById("editFilmPrompt").value.trim();
       const activeFrames = currentFrames.filter(f => f.is_active !== false);
 
+      let targetFrames = [];
       if (rangeStr === "Все необработанные" || rangeStr === "") {
-        targetFrames = activeFrames.filter(fr => {
-          if (fr.frame_number === 0 && coverNum > 0) return false;
-          const picked = pickFrameUrl(fr, "restored", "nanobanana");
-          return !picked.url || picked.url.includes("/originals/");
-        });
+        targetFrames = activeFrames.filter(fr => getFrameVersionsInfo(fr).availableRestored.length === 0);
       } else {
         const nums = new Set();
         rangeStr.split(",").forEach(p => {
@@ -799,91 +1007,71 @@
 
       if (!targetFrames.length) return alert("Все выбранные кадры уже отреставрированы!");
 
-      const btn = document.getElementById("btnRunBatchAi");
-      const logBox = document.getElementById("aiProgressBox");
+      const btn = document.getElementById("btnBatchRestore");
+      const logBox = document.getElementById("aiLogBox");
       btn.disabled = true;
       logBox.classList.remove("hidden");
 
       const filesToUpload = [];
-      const succeededFrames = [];
+      const doneFrames = [];
 
       for (let i = 0; i < targetFrames.length; i++) {
         const fr = targetFrames[i];
         logBox.innerText = `🎨 Кадр #${fr.frame_number} (${i + 1} из ${targetFrames.length})...`;
         try {
-          const origUrl = pickFrameUrl(fr, "original").url;
-          const webpBlob = await callGeminiRestoreFrame(origUrl, style, customP);
+          const origUrl = getFrameVersionsInfo(fr).originalUrl;
+          const webpBlob = await callGeminiRestore(origUrl, style, customP);
           const fname = `f_${String(fr.frame_number).padStart(3, "0")}.webp`;
           filesToUpload.push({ path: `nanobanana_paid/${currentFilm.id}/${fname}`, content: webpBlob });
-          succeededFrames.push({ frame: fr, blob: webpBlob });
+          doneFrames.push(fr);
         } catch (e) {
-          console.error(`Ошибка кадра #${fr.frame_number}:`, e);
-          logBox.innerText += `\n❌ Сбой на кадре #${fr.frame_number}: ${e.message}`;
+          logBox.innerText += `\n❌ Кадр #${fr.frame_number}: ${e.message}`;
         }
         await new Promise(r => setTimeout(r, 2000));
       }
 
-      if (!filesToUpload.length) {
-        btn.disabled = false;
-        return;
-      }
-
-      // Если кадр обложки есть среди новых — дублируем его как f_000.webp
-      const covItem = succeededFrames.find(x => x.frame.frame_number === coverNum);
-      if (covItem && coverNum > 0) {
-        filesToUpload.push({ path: `nanobanana_paid/${currentFilm.id}/f_000.webp`, content: covItem.blob });
-      }
+      if (!filesToUpload.length) { btn.disabled = false; return; }
 
       try {
-        logBox.innerText = `📤 Пакетная выгрузка (${filesToUpload.length} файлов) на Hugging Face одним коммитом...`;
+        logBox.innerText = `📤 Загрузка ${filesToUpload.length} кадров на Hugging Face (1 коммит)...`;
         const { uploadFiles } = await import("https://esm.sh/@huggingface/hub");
         await uploadFiles({
           repo: { type: "dataset", name: HF_REPO },
-          accessToken: hfToken,
-          commitTitle: `Batch restore ${succeededFrames.length} frames for ${currentFilm.title}`,
+          accessToken: adminSecrets.hf_token,
+          commitTitle: `Batch restore ${doneFrames.length} frames for ${currentFilm.title}`,
           files: filesToUpload
         });
 
-        logBox.innerText = `🔗 Обновление ссылок в Supabase...`;
-        for (const item of succeededFrames) {
-          const fr = item.frame;
+        logBox.innerText = `🔗 Обновление базы Supabase...`;
+        for (const fr of doneFrames) {
           const hfUrl = `https://huggingface.co/datasets/${HF_REPO}/resolve/main/nanobanana_paid/${currentFilm.id}/f_${String(fr.frame_number).padStart(3, "0")}.webp`;
           await sbFetch("frame_versions?on_conflict=frame_id,version_type", {
             method: "POST",
             headers: { "Prefer": "resolution=merge-duplicates,return=representation" },
-            body: JSON.stringify({
-              frame_id: fr.id,
-              version_type: "nanobanana",
-              image_url: hfUrl,
-              version_label: "Реставрация Gemini 3.1"
-            })
+            body: JSON.stringify({ frame_id: fr.id, version_type: "nanobanana", image_url: hfUrl, version_label: "Реставрация Gemini 3.1" })
           });
           const ex = fr.frame_versions.find(v => v.version_type === "nanobanana");
           if (ex) ex.image_url = hfUrl; else fr.frame_versions.push({ version_type: "nanobanana", image_url: hfUrl });
         }
 
-        await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ status: "restored_paid" })
-        });
+        await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ status: "restored_paid" }) });
         currentFilm.status = "restored_paid";
-        document.getElementById("editStatus").value = "restored_paid";
+        document.getElementById("editFilmStatus").value = "restored_paid";
         updatePlayerFrame();
-        renderThumbs();
+        renderThumbsGrid();
         renderStatusTabs();
-        logBox.innerText = `🏁 ГОТОВО! Обработано кадров: ${succeededFrames.length}. Диафильм опубликован!`;
+        logBox.innerText = `🏁 ГОТОВО! Отреставрировано кадров: ${doneFrames.length}`;
       } catch (e) {
         logBox.innerText = `❌ Ошибка выгрузки: ${e.message}`;
-      } finally {
-        btn.disabled = false;
-      }
+      } finally { btn.disabled = false; }
     }
 
     window.addEventListener("keydown", (e) => {
-      if (document.getElementById("playerView").classList.contains("hidden")) return;
+      if (document.getElementById("playerSection").classList.contains("hidden")) return;
       if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
       if (e.key === "ArrowRight") nextFrame();
       if (e.key === "ArrowLeft") prevFrame();
+      if (e.key === "Escape") closeFullscreenModal();
     });
 
     initApp();
