@@ -388,8 +388,9 @@
     async function sbFetch(path, options = {}) {
       const headers = { "apikey": PUBLIC_KEY, "Content-Type": "application/json", ...(options.headers || {}) };
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...options, headers });
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-      return res.status === 204 ? null : await res.json();
+      const txt = await res.text();
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${txt}`);
+      return txt ? JSON.parse(txt) : null;
     }
 
     function toSlug(str) {
