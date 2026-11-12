@@ -265,28 +265,39 @@ Return ONLY valid JSON: {"caption": "...", "scene_hint": "..."}`;
 
   const reqBody = {
     contents: [{ role: "user", parts: [{ inlineData: { mimeType: b.type || "image/webp", data: b64 } }, { text: ocrPrompt }] }],
-    generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
+    generationConfig: { temperature: 0.1 }
   };
 
-  const ocrModel = "gemini-2.5-flash";
-  let apiUrl = "", headers = { "Content-Type": "application/json" };
-  if (creds.startsWith("{")) {
-    const { token, projectId } = await getVertexAccessToken(creds);
-    apiUrl = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/global/publishers/google/models/${ocrModel}:generateContent`;
-    headers["Authorization"] = `Bearer ${token}`;
-  } else {
-    apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${ocrModel}:generateContent?key=${creds}`;
+  const modelsToTry = ["gemini-3.1-flash-lite", "gemini-3.1-flash-lite-preview", "gemini-3.1-flash"];
+  let lastErr = "";
+
+  for (const ocrModel of modelsToTry) {
+    let apiUrl = "", headers = { "Content-Type": "application/json" };
+    if (creds.startsWith("{")) {
+      const { token, projectId } = await getVertexAccessToken(creds);
+      apiUrl = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/global/publishers/google/models/${ocrModel}:generateContent`;
+      headers["Authorization"] = `Bearer ${token}`;
+    } else {
+      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${ocrModel}:generateContent?key=${creds}`;
+    }
+
+    const res = await fetch(apiUrl, { method: "POST", headers, body: JSON.stringify(reqBody) });
+    if (res.status === 404) {
+      lastErr = `404 (${ocrModel})`;
+      continue;
+    }
+    if (!res.ok) throw new Error(`OCR API (${res.status}): ${await res.text()}`);
+
+    const j = await res.json();
+    const rawTxt = j?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const jsonMatch = rawTxt.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : "{}");
+    return {
+      source_text: (parsed.caption || "").trim(),
+      scene_hint: (parsed.scene_hint || "").trim()
+    };
   }
-
-  const res = await fetch(apiUrl, { method: "POST", headers, body: JSON.stringify(reqBody) });
-  if (!res.ok) throw new Error(`OCR API (${res.status}): ${await res.text()}`);
-  const j = await res.json();
-  const rawTxt = j?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-  const parsed = JSON.parse(rawTxt.replace(/^```json|```$/g, "").trim());
-  return {
-    source_text: (parsed.caption || "").trim(),
-    scene_hint: (parsed.scene_hint || "").trim()
-  };
+  throw new Error(`Модели OCR не найдены: ${lastErr}`);
 }
 
 async function ocrSingleCurrentFrame() {
