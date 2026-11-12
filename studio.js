@@ -81,22 +81,26 @@ function openSecretsModal() {
   document.getElementById("secGcpCreds").value = adminSecrets.gcp_credentials || "";
   document.getElementById("secXaiKey").value = adminSecrets.xai_api_key || "";
   document.getElementById("secOpenRouterKey").value = adminSecrets.openrouter_api_key || "";
-  document.getElementById("secBonusLeft").value = Number(adminSecrets.bonus_left_ils || 0).toFixed(2);
-  document.getElementById("secPrepayLeft").value = Number(adminSecrets.prepay_left_ils || 0).toFixed(2);
+  const bEl = document.getElementById("secBonusLeft") || document.getElementById("secBudgetTotal");
+  const pEl = document.getElementById("secPrepayLeft") || document.getElementById("secBudgetSpent");
+  if (bEl) bEl.value = Number(adminSecrets.bonus_left_ils || 0).toFixed(2);
+  if (pEl) pEl.value = Number(adminSecrets.prepay_left_ils || 0).toFixed(2);
   document.getElementById("secNewPass").value = "";
   document.getElementById("secretsModal").classList.remove("hidden");
 }
 function closeSecretsModal() { document.getElementById("secretsModal").classList.add("hidden"); }
 
 async function saveSecretsToDb() {
+  const bEl = document.getElementById("secBonusLeft") || document.getElementById("secBudgetTotal");
+  const pEl = document.getElementById("secPrepayLeft") || document.getElementById("secBudgetSpent");
   const payload = {
     pass_input: adminPassword,
     new_hf: document.getElementById("secHfToken").value.trim(),
     new_gcp: document.getElementById("secGcpCreds").value.trim(),
     new_xai: document.getElementById("secXaiKey").value.trim(),
     new_openrouter: document.getElementById("secOpenRouterKey").value.trim(),
-    new_bonus_left: String(parseFloat(document.getElementById("secBonusLeft").value) || 0),
-    new_prepay_left: String(parseFloat(document.getElementById("secPrepayLeft").value) || 0),
+    new_bonus_left: String(parseFloat(bEl ? bEl.value : 152.20) || 0),
+    new_prepay_left: String(parseFloat(pEl ? pEl.value : 12.70) || 0),
     new_pass: document.getElementById("secNewPass").value.trim() || null
   };
   try {
@@ -233,7 +237,7 @@ async function saveCurrentPromptAsPreset() {
 }
 
 // =========================================================================
-// МОДУЛЬ OCR: ПРЕДВАРИТЕЛЬНОЕ ЧТЕНИЕ ПОДПИСЕЙ И РАКУРСА ГЕРОЕВ (GEMINI VISION)
+// МОДУЛЬ OCR: МУЛЬТИ-РЕГИОНАЛЬНОЕ ЧТЕНИЕ ПОДПИСЕЙ И РАКУРСА (US-CENTRAL1 + GLOBAL)
 // =========================================================================
 async function saveCurrentFrameTextAndHint() {
   if (!isAdmin || !currentFrames.length) return;
@@ -263,41 +267,52 @@ async function runGeminiVisionOcrOnFrame(origUrl, filmTitle) {
 2. Using BOTH the visual frame and the clue in the Russian caption, write a concise English scene & pose description (1-2 sentences) to help an image restoration AI understand blurry/dark areas: who is depicted, whether each character is facing the viewer, in profile, or turned away (seen from behind), what objects/colors are mentioned in the caption, and the time of day.
 Return ONLY valid JSON: {"caption": "...", "scene_hint": "..."}`;
 
-  const reqBody = {
-    contents: [{ role: "user", parts: [{ inlineData: { mimeType: b.type || "image/webp", data: b64 } }, { text: ocrPrompt }] }],
-    generationConfig: { temperature: 0.1 }
-  };
+  // Пробуем по очереди региональные текстовые модели (us-central1) и глобальные модели 3.1 (global)
+  const routesToTry = [
+    { loc: "us-central1", model: "gemini-2.5-flash" },
+    { loc: "us-central1", model: "gemini-2.0-flash-001" },
+    { loc: "global",      model: "gemini-3.1-flash-lite-preview" },
+    { loc: "global",      model: "gemini-3.1-flash-lite-image" }
+  ];
 
-  const modelsToTry = ["gemini-3.1-flash-lite", "gemini-3.1-flash-lite-preview", "gemini-3.1-flash"];
   let lastErr = "";
+  for (const rt of routesToTry) {
+    const reqBody = {
+      contents: [{ role: "user", parts: [{ inlineData: { mimeType: b.type || "image/webp", data: b64 } }, { text: ocrPrompt }] }],
+      generationConfig: {
+        temperature: 0.1,
+        ...(rt.model.includes("-image") ? { responseModalities: ["TEXT"] } : {})
+      }
+    };
 
-  for (const ocrModel of modelsToTry) {
     let apiUrl = "", headers = { "Content-Type": "application/json" };
     if (creds.startsWith("{")) {
       const { token, projectId } = await getVertexAccessToken(creds);
-      apiUrl = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/global/publishers/google/models/${ocrModel}:generateContent`;
+      const host = rt.loc === "global" ? "aiplatform.googleapis.com" : `${rt.loc}-aiplatform.googleapis.com`;
+      apiUrl = `https://${host}/v1/projects/${projectId}/locations/${rt.loc}/publishers/google/models/${rt.model}:generateContent`;
       headers["Authorization"] = `Bearer ${token}`;
     } else {
-      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${ocrModel}:generateContent?key=${creds}`;
+      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${rt.model}:generateContent?key=${creds}`;
     }
 
     const res = await fetch(apiUrl, { method: "POST", headers, body: JSON.stringify(reqBody) });
-    if (res.status === 404) {
-      lastErr = `404 (${ocrModel})`;
+    if (res.status === 404 || res.status === 400) {
+      lastErr = `${res.status} (${rt.loc}/${rt.model})`;
       continue;
     }
     if (!res.ok) throw new Error(`OCR API (${res.status}): ${await res.text()}`);
 
     const j = await res.json();
-    const rawTxt = j?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const rawTxt = (j?.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join(" ").trim();
     const jsonMatch = rawTxt.match(/\{[\s\S]*\}/);
-    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : "{}");
+    if (!jsonMatch) continue;
+    const parsed = JSON.parse(jsonMatch[0]);
     return {
       source_text: (parsed.caption || "").trim(),
       scene_hint: (parsed.scene_hint || "").trim()
     };
   }
-  throw new Error(`Модели OCR не найдены: ${lastErr}`);
+  throw new Error(`Не удалось вызвать OCR (${lastErr})`);
 }
 
 async function ocrSingleCurrentFrame() {
@@ -322,7 +337,7 @@ async function runBatchOcrForFilm() {
   const targets = currentFrames.map((fr, idx) => ({ fr, humanNum: idx + 1 })).filter(x => x.fr.is_active !== false && !x.fr.source_text);
   const listToRun = targets.length > 0 ? targets : currentFrames.map((fr, idx) => ({ fr, humanNum: idx + 1 })).filter(x => x.fr.is_active !== false);
 
-  if (!confirm(`Распознать русские подписи и подсказки ракурса для ${listToRun.length} кадров диафильма "${currentFilm.title}"? (Стоимость ~₪0.02 за весь фильм)`)) return;
+  if (!confirm(`Распознать русские подписи и подсказки ракурса для ${listToRun.length} кадров диафильма "${currentFilm.title}"? (~₪0.02 за весь фильм)`)) return;
 
   const btn = document.getElementById("btnBatchOcr");
   const logBox = document.getElementById("aiLogBox");
@@ -346,12 +361,11 @@ async function runBatchOcrForFilm() {
       }
       await new Promise(r => setTimeout(r, 800));
     }
-    // Списываем ~₪0.02 за пакетный OCR
     await sbFetch("rpc/admin_spend_wallet", {
       method: "POST",
       body: JSON.stringify({ pass_input: adminPassword, spend_ils: Number((okCount * 0.0004).toFixed(3)), wallet_type: (adminSecrets.gcp_credentials || "").trim().startsWith("{") ? "bonus" : "prepay" })
     });
-    logBox.innerText = `✅ ГОТОВО! Распознаны подписи и сюжет для ${okCount} кадров! Теперь при реставрации ИИ будет точно знать сюжет и буквы каждого кадра.`;
+    logBox.innerText = `✅ ГОТОВО! Распознаны подписи и сюжет для ${okCount} кадров!`;
   } finally {
     btn.disabled = false; await keepScreenAwake(false);
   }
@@ -739,7 +753,6 @@ function getDualReferenceUrls(autoChainUrl = null) {
   return { refColorUrl, refFaceUrl, refColorNum: !isNaN(colorNum) ? colorNum : (autoChainUrl ? "Авто" : null), refFaceNum: !isNaN(faceNum) ? faceNum : null };
 }
 
-// Собирает индивидуальный промпт для конкретного кадра (с названием фильма, подписью source_text и подсказкой ракурса scene_hint)
 function buildPromptForSpecificFrame(fr) {
   const basePrompt = document.getElementById("nbFinalPromptText").value.trim();
   const useCaption = document.getElementById("nbUseFrameCaption")?.checked;
@@ -869,10 +882,7 @@ function buildFrameMetaObject(refs, usage, finalPromptUsed, wallet) {
   let unitUsd = getUnitCostUsd();
   const promptTokens = usage?.promptTokenCount || 0;
   const outputTokens = usage?.candidatesTokenCount || 0;
-  // Если сервер прислал точные токены usageMetadata — учитываем и входные токены картинок/текста
-  if (promptTokens > 0) {
-    unitUsd += (promptTokens / 1000000) * 0.15;
-  }
+  if (promptTokens > 0) unitUsd += (promptTokens / 1000000) * 0.15;
   const stObj = promptPresets.find(p => p.id === document.getElementById("nbStylePresetSelect")?.value);
   const colObj = promptPresets.find(p => p.id === document.getElementById("nbColorPresetSelect")?.value);
   return {
@@ -918,7 +928,6 @@ async function flushReadyFrames(queue, logBox) {
     method: "POST", headers: { "Prefer": "resolution=merge-duplicates" }, body: JSON.stringify(verRows)
   });
 
-  // Списываем точную стоимость из соответствующего живого кошелька (bonus или prepay)
   const spentIls = validBatch.reduce((acc, x) => acc + (parseFloat(x.meta.cost_ils) || 0), 0);
   const wType = validBatch[0]?.meta?.wallet || "bonus";
   try {
@@ -967,7 +976,6 @@ async function restoreSingleCurrentFrame() {
   if (!adminSecrets.hf_token) return openSecretsModal();
 
   const fr = currentFrames[currentFrameIdx];
-  // Если админ вписал подпись или подсказку в поля и еще не нажал "Сохранить текст", подхватываем их на лету
   fr.source_text = document.getElementById("editFrameSourceText")?.value.trim() || fr.source_text;
   fr.scene_hint = document.getElementById("editFrameSceneHint")?.value.trim() || fr.scene_hint;
 
