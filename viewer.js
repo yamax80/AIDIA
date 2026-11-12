@@ -1,5 +1,5 @@
 // =========================================================================
-// VIEWER.JS — КАТАЛОГ, КАСКАДНЫЕ ФИЛЬТРЫ, ПЛЕЕР, ТЕХПАСПОРТ И ПОЛНЫЙ ЭКРАН
+// VIEWER.JS — КАТАЛОГ, КАСКАДНЫЕ ФИЛЬТРЫ, ПЛЕЕР, ПОДПИСИ И ПОЛНЫЙ ЭКРАН
 // =========================================================================
 const SUPABASE_URL = "https://ppzbqkexgbcejgvazhlb.supabase.co";
 const PUBLIC_KEY = "sb_publishable_yao4t4XJoW6i847Mi33ETw_bjJssYrs";
@@ -19,12 +19,12 @@ let isAdmin = false;
 let adminPassword = sessionStorage.getItem("diafond_admin_pass") || "";
 let adminSecrets = {
   hf_token: "", gcp_credentials: "", xai_api_key: "", openrouter_api_key: "",
-  budget_total_ils: 30.0, budget_spent_ils: 0.0
+  bonus_left_ils: 152.20, prepay_left_ils: 12.70, total_spent_ils: 0.00
 };
 let adminStatusFilter = "ALL_DOWNLOADED";
 
 let allFilms = [];
-let filmStatsMap = {}; // film_id -> { coverUrl, hasRestored, hasFrames }
+let filmStatsMap = {};
 let promptPresets = [];
 let currentFilm = null;
 let currentFrames = [];
@@ -48,7 +48,6 @@ function toSlug(str) {
   return (str || "diafilm").toLowerCase().split('').map(c => ru[c] !== undefined ? ru[c] : c).join('').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || ("film-" + Date.now());
 }
 
-// Сбор всех версий кадра (с поддержкой любых пользовательских слотов и метаданных)
 function getFrameVersionsInfo(frame) {
   const versions = frame.frame_versions || [];
   const isRestoredUrl = (u) => u && !u.includes("/originals/");
@@ -67,7 +66,6 @@ function getFrameVersionsInfo(frame) {
     }
   });
 
-  // Сортируем так, чтобы default_version фильма (если задана) шла первой
   const defVer = currentFilm?.default_version;
   if (defVer && defVer !== "auto") {
     availableRestored.sort((a, b) => (a.type === defVer ? -1 : b.type === defVer ? 1 : 0));
@@ -121,12 +119,8 @@ async function reloadCatalogData() {
   }
 }
 
-// =========================================================================
-// УМНЫЕ КАСКАДНЫЕ (СВЯЗАННЫЕ) ФИЛЬТРЫ БЕЗ "0 ЛЕНТ"
-// =========================================================================
 function matchesBaseFilters(f, excludeField = null) {
   const st = filmStatsMap[f.id] || {};
-  // Для зрителей показываем все фильмы, у которых есть скачанные кадры (и ИИ, и оригинал)
   if (!isAdmin) {
     if (!st.hasFrames || !st.coverUrl) return false;
   } else {
@@ -182,7 +176,6 @@ function populateSelectWithCounts(selectId, fieldName, defaultLabel) {
   sel.innerHTML = `<option value="">${defaultLabel}</option>` +
     sortedKeys.map(k => `<option value="${k}" ${k === currentVal ? 'selected' : ''}>${k} (${counts[k]})</option>`).join("");
 
-  // Если выбранное ранее значение стало недоступным при новой комбинации — сбрасываем его, чтобы не было 0 лент
   if (currentVal && !counts[currentVal]) sel.value = "";
 }
 
@@ -237,9 +230,6 @@ function showSection(sec) {
   document.getElementById("playerSection").classList.toggle("hidden", sec !== "player");
 }
 
-// =========================================================================
-// ПЛЕЕР, ВЫБОР ВЕРСИЙ, ТЕХПАСПОРТ И ПОЛНОЭКРАННЫЙ РЕЖИМ С ДВОЙНЫМ ТАПОМ
-// =========================================================================
 async function openFilm(filmId) {
   currentFilm = allFilms.find(f => f.id === filmId);
   if (!currentFilm) return;
@@ -299,13 +289,13 @@ function updatePlayerFrame() {
     document.getElementById("mainFrameImg").src = "";
     document.getElementById("frameCounterText").innerText = "Кадры еще не скачаны";
     document.getElementById("floatingModePill").classList.add("hidden");
+    document.getElementById("frameCaptionBar").classList.add("hidden");
     return;
   }
   const fr = currentFrames[currentFrameIdx];
   const humanNum = currentFrameIdx + 1;
   const info = getFrameVersionsInfo(fr);
 
-  // Выпадающий список версий (показывается, если версий больше 1 или включен режим Админа)
   const verSel = document.getElementById("playerVersionSelect");
   if (info.availableRestored.length > 1 || (isAdmin && info.availableRestored.length >= 1)) {
     verSel.classList.remove("hidden");
@@ -327,11 +317,19 @@ function updatePlayerFrame() {
   document.getElementById("floatingModePill").classList.toggle("hidden", !picked.hasBoth);
   document.getElementById("fsModePill").classList.toggle("hidden", !picked.hasBoth);
 
+  // Показываем распознанную подпись кадра под проектором (если есть)
+  const capBar = document.getElementById("frameCaptionBar");
+  if (fr.source_text && fr.source_text.trim()) {
+    capBar.classList.remove("hidden");
+    capBar.innerText = `«${fr.source_text.trim()}»`;
+  } else {
+    capBar.classList.add("hidden");
+  }
+
   const countStr = `${humanNum} / ${currentFrames.length}`;
   document.getElementById("frameCounterText").innerText = countStr;
   document.getElementById("fsCounter").innerText = countStr;
 
-  // Кнопка Техпаспорта кадра (если у активной версии сохранены параметры meta)
   const metaObj = picked.activeVersion?.meta;
   const hasMeta = metaObj && Object.keys(metaObj).length > 0;
   document.getElementById("btnTechPassport").classList.toggle("hidden", !hasMeta);
@@ -341,8 +339,9 @@ function updatePlayerFrame() {
       `Модель: ${metaObj.model || '—'} | Разрешение: ${metaObj.resolution || '1K'} | Температура: ${metaObj.temperature ?? '—'}`,
       `Пресет стиля: ${metaObj.style_preset || '—'} | Фильтр цвета: ${metaObj.color_preset || '—'}`,
       `Эталон цвета: ${metaObj.ref_color || 'Нет'} | Эталон лица: ${metaObj.ref_face || 'Нет'}`,
-      `Стоимость: $${metaObj.cost_usd || '0.00'} (~₪${metaObj.cost_ils || '0.00'}) | Дата: ${metaObj.date || '—'}`,
-      `Промпт: ${metaObj.prompt || '—'}`
+      `Токены: вх. ${metaObj.prompt_tokens || '—'}, вых. ${metaObj.output_tokens || '—'} | Списано: $${metaObj.cost_usd || '0.00'} (~₪${metaObj.cost_ils || '0.00'}, счет: ${metaObj.wallet || 'bonus'})`,
+      `Дата: ${metaObj.date || '—'}`,
+      `Итоговый промпт:\n${metaObj.prompt || '—'}`
     ].join("\n");
   } else {
     document.getElementById("frameTechPassportBox").classList.add("hidden");
@@ -351,6 +350,10 @@ function updatePlayerFrame() {
   if (isAdmin) {
     document.getElementById("adminCurrentFrameLabel").innerText = `Кадр №${humanNum} из ${currentFrames.length} (${picked.isRestored ? '✅ Есть ИИ' : '📜 Оригинал'})`;
     document.getElementById("btnRestoreSingle").innerText = `✨ Реставрировать кадр №${humanNum}`;
+    const srcInput = document.getElementById("editFrameSourceText");
+    const hintInput = document.getElementById("editFrameSceneHint");
+    if (srcInput) srcInput.value = fr.source_text || "";
+    if (hintInput) hintInput.value = fr.scene_hint || "";
   }
   highlightActiveThumb();
 }
@@ -383,11 +386,15 @@ function renderThumbsGrid() {
     const picked = pickBestUrl(fr, "restored", preferredEngine);
     const origUrl = getFrameVersionsInfo(fr).originalUrl;
     const verCount = getFrameVersionsInfo(fr).availableRestored.length;
+    const hasOcr = Boolean(fr.source_text && fr.source_text.trim());
     return `
       <div id="thumb_${idx}" onclick="currentFrameIdx=${idx}; updatePlayerFrame();"
         class="frame-aspect rounded-xl overflow-hidden border-2 cursor-pointer transition relative ${fr.is_active === false ? 'opacity-35' : ''}">
         <img src="${picked.url}" loading="lazy" class="w-full h-full object-cover" onerror="if(this.src!=='${origUrl}')this.src='${origUrl}'" />
-        ${picked.isRestored ? `<span class="absolute top-1 left-1 px-1 rounded bg-emerald-600/90 text-[9px] text-white font-bold">${verCount > 1 ? verCount + 'v' : 'ИИ'}</span>` : ``}
+        <div class="absolute top-1 left-1 flex gap-1">
+          ${picked.isRestored ? `<span class="px-1 rounded bg-emerald-600/90 text-[9px] text-white font-bold">${verCount > 1 ? verCount + 'v' : 'ИИ'}</span>` : ``}
+          ${hasOcr ? `<span class="px-1 rounded bg-amber-600/90 text-[9px] text-[#18120e] font-bold" title="Текст распознан">📖</span>` : ``}
+        </div>
         <span class="absolute bottom-1 right-1 px-1.5 py-0.2 rounded bg-black/80 text-[10px] font-mono text-[#f3ece2]">№${humanNum}</span>
       </div>`;
   }).join("");
@@ -401,11 +408,10 @@ function highlightActiveThumb() {
   });
 }
 
-// ПОЛНОЭКРАННЫЙ РЕЖИМ: ЧИСТЫЙ ЭКРАН + ВЫЗОВ ПАНЕЛИ ПО ДВОЙНОМУ НАЖАТИЮ + ПОВОРОТ 90°
 function openFullscreenModal() {
   const modal = document.getElementById("fullscreenModal");
   modal.classList.remove("hidden");
-  document.getElementById("fsOverlayControls").classList.add("hidden"); // Скрываем панель для 100% чистого экрана
+  document.getElementById("fsOverlayControls").classList.add("hidden");
   if (modal.requestFullscreen) modal.requestFullscreen().catch(() => {});
 }
 
@@ -430,7 +436,6 @@ function toggleFsOverlay() {
   }
 }
 
-// Свайпы влево/вправо и двойной тап (Double Tap) для вызова меню на полном экране
 (function setupTouchGestures() {
   const mainEl = document.getElementById("mainFrameTouchArea");
   const fsEl = document.getElementById("fsTouchArea");
