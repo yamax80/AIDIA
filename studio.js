@@ -237,7 +237,7 @@ async function saveCurrentPromptAsPreset() {
 }
 
 // =========================================================================
-// МОДУЛЬ OCR: МУЛЬТИ-РЕГИОНАЛЬНОЕ ЧТЕНИЕ ПОДПИСЕЙ И РАКУРСА (US-CENTRAL1 + GLOBAL)
+// МОДУЛЬ OCR: АВТО-ПОДБОР И КЕШИРОВАНИЕ РАБОЧЕЙ ТЕКСТОВОЙ МОДЕЛИ GEMINI
 // =========================================================================
 async function saveCurrentFrameTextAndHint() {
   if (!isAdmin || !currentFrames.length) return;
@@ -253,6 +253,8 @@ async function saveCurrentFrameTextAndHint() {
   } catch (e) { alert("Ошибка: " + e.message); }
 }
 
+let workingOcrRoute = null;
+
 async function runGeminiVisionOcrOnFrame(origUrl, filmTitle) {
   const creds = (adminSecrets.gcp_credentials || "").trim();
   if (!creds) { openSecretsModal(); throw new Error("Укажите ключ Gemini/Vertex в '🔑 Ключи'"); }
@@ -267,22 +269,26 @@ async function runGeminiVisionOcrOnFrame(origUrl, filmTitle) {
 2. Using BOTH the visual frame and the clue in the Russian caption, write a concise English scene & pose description (1-2 sentences) to help an image restoration AI understand blurry/dark areas: who is depicted, whether each character is facing the viewer, in profile, or turned away (seen from behind), what objects/colors are mentioned in the caption, and the time of day.
 Return ONLY valid JSON: {"caption": "...", "scene_hint": "..."}`;
 
-  // Пробуем по очереди региональные текстовые модели (us-central1) и глобальные модели 3.1 (global)
-  const routesToTry = [
-    { loc: "us-central1", model: "gemini-2.5-flash" },
-    { loc: "us-central1", model: "gemini-2.0-flash-001" },
-    { loc: "global",      model: "gemini-3.1-flash-lite-preview" },
-    { loc: "global",      model: "gemini-3.1-flash-lite-image" }
+  const allRoutes = [
+    { loc: "global",      model: "gemini-3.1-flash-lite" },
+    { loc: "us-central1", model: "gemini-3.1-flash-lite" },
+    { loc: "global",      model: "gemini-3.1-flash" },
+    { loc: "us-central1", model: "gemini-3.1-flash" },
+    { loc: "global",      model: "gemini-2.5-flash-lite" },
+    { loc: "us-central1", model: "gemini-2.5-flash-lite" },
+    { loc: "global",      model: "gemini-3-flash-preview" },
+    { loc: "global",      model: "gemini-3-pro-preview" }
   ];
 
-  let lastErr = "";
+  const routesToTry = workingOcrRoute
+    ? [workingOcrRoute, ...allRoutes.filter(r => r.model !== workingOcrRoute.model || r.loc !== workingOcrRoute.loc)]
+    : allRoutes;
+
+  const errorsLog = [];
   for (const rt of routesToTry) {
     const reqBody = {
       contents: [{ role: "user", parts: [{ inlineData: { mimeType: b.type || "image/webp", data: b64 } }, { text: ocrPrompt }] }],
-      generationConfig: {
-        temperature: 0.1,
-        ...(rt.model.includes("-image") ? { responseModalities: ["TEXT"] } : {})
-      }
+      generationConfig: { temperature: 0.1 }
     };
 
     let apiUrl = "", headers = { "Content-Type": "application/json" };
@@ -297,7 +303,7 @@ Return ONLY valid JSON: {"caption": "...", "scene_hint": "..."}`;
 
     const res = await fetch(apiUrl, { method: "POST", headers, body: JSON.stringify(reqBody) });
     if (res.status === 404 || res.status === 400) {
-      lastErr = `${res.status} (${rt.loc}/${rt.model})`;
+      errorsLog.push(`${rt.loc}/${rt.model}:${res.status}`);
       continue;
     }
     if (!res.ok) throw new Error(`OCR API (${res.status}): ${await res.text()}`);
@@ -307,12 +313,13 @@ Return ONLY valid JSON: {"caption": "...", "scene_hint": "..."}`;
     const jsonMatch = rawTxt.match(/\{[\s\S]*\}/);
     if (!jsonMatch) continue;
     const parsed = JSON.parse(jsonMatch[0]);
+    workingOcrRoute = rt; // Запоминаем успешную модель для всех следующих кадров!
     return {
       source_text: (parsed.caption || "").trim(),
       scene_hint: (parsed.scene_hint || "").trim()
     };
   }
-  throw new Error(`Не удалось вызвать OCR (${lastErr})`);
+  throw new Error(`OCR недоступен (${errorsLog.slice(0, 3).join(", ")})`);
 }
 
 async function ocrSingleCurrentFrame() {
@@ -329,7 +336,7 @@ async function ocrSingleCurrentFrame() {
     fr.scene_hint = scene_hint;
     updatePlayerFrame(); renderThumbsGrid();
     logBox.innerText = `✅ Кадр №${humanNum} распознан!\n📖 Подпись: ${source_text || '(нет текста)'}\n🎭 Сцена: ${scene_hint}`;
-  } catch (e) { logBox.innerText = `❌ Ошибка OCR: ${e.message}`; }
+  } catch (e) { logBox.innerText = `❌ ${e.message}`; }
 }
 
 async function runBatchOcrForFilm() {
@@ -359,7 +366,7 @@ async function runBatchOcrForFilm() {
       } catch (e) {
         logBox.innerText += `\n⚠️ Кадр №${humanNum}: ${e.message}`;
       }
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 700));
     }
     await sbFetch("rpc/admin_spend_wallet", {
       method: "POST",
