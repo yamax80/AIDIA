@@ -55,7 +55,7 @@
       </div>
 
       <div class="flex items-center gap-1.5">
-        <span id="budgetBadge" onclick="openSecretsModal()" title="Нажмите для настройки баланса и ключей" class="hidden cursor-pointer px-2.5 py-1 rounded-lg text-[11px] font-mono bg-emerald-950/80 text-emerald-300 border border-emerald-600/40">🎁 ₪152.20 | 💳 ₪12.70</span>
+        <span id="budgetBadge" onclick="openSecretsModal()" class="hidden cursor-pointer px-2.5 py-1 rounded-lg text-[11px] font-mono bg-emerald-950/80 text-emerald-300 border border-emerald-600/40">🎁 ₪152.20 | 💳 ₪12.70</span>
         <button id="adminPromptsBtn" onclick="openPromptsModal()" class="hidden px-2.5 py-1.5 rounded-lg text-xs bg-[#2a2017] text-amber-300 border border-[#4a3728]">📝 Промпты</button>
         <button id="adminSettingsBtn" onclick="openSecretsModal()" class="hidden px-2.5 py-1.5 rounded-lg text-xs bg-[#2a2017] text-[#d99b26] border border-[#4a3728]">🔑 Ключи</button>
         <button id="loginBtn" onclick="handleAuthClick()" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-[#2a2017] hover:bg-[#35281d] text-[#e6ccb2] border border-[#4a3728] transition">Войти</button>
@@ -63,7 +63,7 @@
     </div>
   </header>
 
-  <!-- ГЛАВНАЯ: КАТАЛОГ И УМНЫЕ СВЯЗАННЫЕ ФИЛЬТРЫ -->
+  <!-- ГЛАВНАЯ: КАТАЛОГ -->
   <main id="catalogSection" class="flex-1">
     <div id="heroBanner" class="hero-glow border-b border-[#291f17] px-4 py-8 sm:py-11 text-center">
       <div class="max-w-2xl mx-auto">
@@ -93,7 +93,7 @@
         <div id="adminStatusTabs" class="flex flex-wrap gap-1.5 pt-1"></div>
       </div>
 
-      <!-- УМНЫЙ КАСКАДНЫЙ ФИЛЬТР -->
+      <!-- КАСКАДНЫЙ ФИЛЬТР -->
       <div class="bg-[#201813] border border-[#33271d] rounded-2xl p-3.5 mb-6 space-y-2.5">
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
           <div class="sm:col-span-5">
@@ -168,21 +168,18 @@
       </div>
     </div>
 
-    <!-- РАСПОЗНАННЫЙ ТЕКСТ ПОДПИСИ ПОД КАДРОМ (ЕСЛИ ЕСТЬ В БАЗЕ) -->
+    <!-- РАСПОЗНАННЫЙ ТЕКСТ ПОДПИСИ ПОД КАДРОМ -->
     <div id="frameCaptionBar" class="hidden mt-2 px-3.5 py-2 rounded-xl bg-[#201813] border border-[#33271d] text-xs sm:text-sm text-[#f3ece2] italic text-center"></div>
 
-    <!-- СТРОКА МЕТАДАННЫХ И КНОПКА ТЕХПАСПОРТА КАДРА -->
+    <!-- СТРОКА МЕТАДАННЫХ И КНОПКА ТЕХПАСПОРТА -->
     <div class="flex flex-wrap items-center justify-between gap-2 mt-2.5 px-1">
       <div class="text-xs text-[#9e9081]" id="playerMetaLine"></div>
       <div class="flex items-center gap-2.5">
-        <button id="btnTechPassport" onclick="toggleFrameTechPassport()" class="hidden px-2.5 py-1 rounded-lg bg-[#221a14] border border-[#3b2d22] text-[11px] text-[#9e9081] hover:text-[#d99b26]">
-          ℹ️ Техпаспорт кадра
-        </button>
+        <button id="btnTechPassport" onclick="toggleFrameTechPassport()" class="hidden px-2.5 py-1 rounded-lg bg-[#221a14] border border-[#3b2d22] text-[11px] text-[#9e9081] hover:text-[#d99b26]">ℹ️ Техпаспорт кадра</button>
         <span id="frameCounterText" class="text-sm font-medium text-[#cfc4b6] tabular-nums">0 / 0</span>
       </div>
     </div>
 
-    <!-- СКРЫТАЯ ПАНЕЛЬ ТЕХПАСПОРТА КАДРА -->
     <div id="frameTechPassportBox" class="hidden mt-2 p-3 rounded-xl bg-[#16110d] border border-[#382b20] text-xs space-y-1.5">
       <div class="flex items-center justify-between">
         <span class="font-semibold text-[#d99b26]">🔬 Параметры генерации этого кадра</span>
@@ -191,16 +188,30 @@
       <div id="frameTechPassportContent" class="text-[11px] text-[#cfc4b6] font-mono whitespace-pre-wrap"></div>
     </div>
 
-    <!-- ЖИВАЯ ЛЕНТА ТОЛЬКО ЧТО ОТРЕСТАВРИРОВАННЫХ КАДРОВ -->
-    <div id="livePreviewSection" class="hidden mt-4 p-3 rounded-2xl bg-[#1c1611] border border-emerald-500/40">
-      <div class="text-xs font-semibold text-emerald-400 mb-2">✨ Только что отреставрированные кадры (Live):</div>
-      <div id="livePreviewStrip" class="flex gap-2 overflow-x-auto pb-1"></div>
-    </div>
-
     <!-- АДМИН-СТУДИЯ ВНУТРИ ДИАФИЛЬМА -->
     <div id="adminPlayerControls" class="hidden mt-4 space-y-4">
-      
-      <!-- Панель текущего открытого кадра + редактирование его распознанной подписи и ракурса -->
+
+      <!-- 1. ВЕРХНИЙ МОНИТОР ПРОЦЕССОВ + КНОПКА СКОПИРОВАТЬ ЛОГ + ЖИВАЯ ЛЕНТА КАДРОВ (ВСЕГДА ПЕРЕД ГЛАЗАМИ!) -->
+      <div class="p-3 rounded-2xl bg-[#14100c] border border-emerald-500/40 space-y-2 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span class="text-xs font-bold text-emerald-400">📡 Монитор процессов и обращений к серверу</span>
+          <div class="flex items-center gap-1.5">
+            <button id="btnStopBatch" onclick="stopBatchRequested=true" class="hidden px-3 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold">⏹️ Остановить процесс</button>
+            <button onclick="copyExecutionLog()" class="px-2.5 py-1 rounded-lg bg-[#2a2017] hover:bg-[#382b20] border border-[#4a3728] text-xs text-[#d99b26]">📋 Скопировать лог</button>
+            <button onclick="toggleFullLogView()" class="px-2.5 py-1 rounded-lg bg-[#221a14] border border-[#382b20] text-xs text-[#cfc4b6]">📜 Весь журнал</button>
+          </div>
+        </div>
+        <div id="aiLogBox" class="p-2.5 rounded-xl bg-[#0b0907] border border-[#2e231a] text-xs font-mono text-[#d99b26] whitespace-pre-wrap max-h-36 overflow-y-auto">Готов к работе. Выберите действие ниже...</div>
+        <div id="fullLogDrawer" class="hidden p-2.5 rounded-xl bg-black border border-stone-800 text-[11px] font-mono text-stone-300 whitespace-pre-wrap max-h-60 overflow-y-auto"></div>
+
+        <!-- Живая лента только что готовых кадров прямо внутри верхнего монитора -->
+        <div id="livePreviewSection" class="hidden pt-1">
+          <div class="text-[11px] font-semibold text-emerald-400 mb-1">✨ Только что отреставрированные кадры (нажмите для просмотра):</div>
+          <div id="livePreviewStrip" class="flex gap-2 overflow-x-auto pb-1"></div>
+        </div>
+      </div>
+
+      <!-- 2. ПАНЕЛЬ ТЕКУЩЕГО ОТКРЫТОГО КАДРА + ПОДПИСЬ И РАКУРС -->
       <div class="p-3 rounded-2xl bg-[#221a14] border border-[#d99b26]/40 space-y-2.5">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <span id="adminCurrentFrameLabel" class="text-xs font-semibold text-[#d99b26]">Кадр №1</span>
@@ -214,14 +225,13 @@
           </div>
         </div>
 
-        <!-- Поля подписи (source_text) и подсказки ракурса/сцены (scene_hint) текущего кадра -->
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 pt-1">
           <div class="sm:col-span-6">
             <label class="text-[10px] text-[#9e9081]">📖 Точный текст подписи кадра (source_text):</label>
             <input id="editFrameSourceText" type="text" placeholder="Напр.: Они долго сидели в саду, под вишнями..." class="w-full mt-0.5 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs text-[#f3ece2]" />
           </div>
           <div class="sm:col-span-4">
-            <label class="text-[10px] text-[#9e9081]">🎭 Подсказка сцены/ракурса для ИИ (scene_hint):</label>
+            <label class="text-[10px] text-[#9e9081]">🎭 Подсказка сцены/ракурса (scene_hint):</label>
             <input id="editFrameSceneHint" type="text" placeholder="Напр.: мужчина слева в профиль, женщина в белом..." class="w-full mt-0.5 bg-[#16110d] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs text-sky-200" />
           </div>
           <div class="sm:col-span-2 flex items-end">
@@ -230,28 +240,57 @@
         </div>
       </div>
 
+      <!-- 3. УПРАВЛЕНИЕ НАБОРАМИ КАДРОВ (ВЕРСИЯМИ) И ПАКЕТНЫЙ ПУЛЬТ -->
       <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-        <!-- ЛЕВАЯ КОЛОНКА: ПУЛЬТ ИИ -->
         <div class="md:col-span-7 p-4 rounded-2xl bg-[#221a14] border border-emerald-600/30 space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">🍌 Студия ИИ-Реставрации</h3>
-            <button onclick="resetCurrentFilmRestorations()" class="text-[11px] text-red-400 hover:underline">🧹 Удалить выбранную версию</button>
+          
+          <!-- Блок управления версиями (наборами кадров): Клонирование и выбор источника! -->
+          <div class="p-3 rounded-xl bg-[#16110d] border border-[#d99b26]/40 space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-xs font-bold text-[#d99b26]">🗂️ Управление наборами кадров (Версиями ИИ)</span>
+              <button onclick="cloneVersionSetModal()" class="px-2.5 py-1 rounded-lg bg-[#d99b26] text-[#18120e] text-[11px] font-bold">
+                📑 Дублировать набор под новым именем
+              </button>
+            </div>
+            <div id="existingVersionsSummary" class="text-[11px] text-[#cfc4b6] font-mono">Существующие наборы: загрузка...</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <div>
+                <label class="text-[10px] text-[#9e9081]">📥 Откуда брать кадр на вход ИИ (Источник):</label>
+                <select id="nbInputSourceSelect" class="w-full mt-0.5 bg-[#221a14] border border-[#382b20] rounded-lg px-2 py-1.5 text-xs text-sky-300 font-medium">
+                  <option value="ORIGINAL">📜 Оригинальный скан пленки</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] text-[#9e9081]">💾 В какой набор (версию) сохранять результат:</label>
+                <div class="flex gap-1 mt-0.5">
+                  <input id="nbVersionSlot" type="text" list="versionPresetsList" value="nanolite1" placeholder="Напр.: nanolite1, color-fix..." class="flex-1 bg-[#221a14] border border-[#d99b26] rounded-lg px-2.5 py-1.5 text-xs text-[#d99b26] font-bold" />
+                  <button onclick="resetCurrentFilmRestorations()" title="Удалить этот набор" class="px-2 rounded-lg bg-red-950/60 text-red-400 text-xs">🗑️</button>
+                </div>
+                <datalist id="versionPresetsList">
+                  <option value="nanolite1">nanolite1</option>
+                  <option value="nanolite-color-fix">nanolite-color-fix</option>
+                  <option value="nanobanana">nanobanana</option>
+                  <option value="flux2">flux2</option>
+                  <option value="puppet_macro">puppet_macro</option>
+                </datalist>
+              </div>
+            </div>
           </div>
 
-          <!-- БЛОК ШАГА 1: ПРЕДВАРИТЕЛЬНОЕ РАСПОЗНАВАНИЕ ТЕКСТА И СЮЖЕТА ВСЕХ КАДРОВ (OCR) -->
+          <!-- Блок OCR всех кадров -->
           <div class="p-2.5 rounded-xl bg-[#16110d] border border-amber-500/30 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div class="text-xs font-semibold text-amber-300">📖 Предварительное чтение подписей и сюжета (OCR)</div>
-              <div class="text-[10px] text-[#9e9081]">Распознает русские подписи и ракурс героев на всех кадрах (~₪0.02 за весь фильм)</div>
+              <div class="text-xs font-semibold text-amber-300">📖 Шаг 1: Распознать подписи и сюжет всех кадров (OCR)</div>
+              <div class="text-[10px] text-[#9e9081]">Заполняет подписи и ракурс героев без остановки на пустых кадрах</div>
             </div>
             <button id="btnBatchOcr" onclick="runBatchOcrForFilm()" class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-[#18120e] text-xs font-bold">
               📖 Распознать текст всех кадров
             </button>
           </div>
 
-          <!-- Модель, Разрешение, Слот версии -->
+          <!-- Модель и Разрешение -->
           <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-            <div class="sm:col-span-6">
+            <div class="sm:col-span-8">
               <label class="text-[11px] text-[#9e9081]">Модель ИИ:</label>
               <select id="nbModelSelect" onchange="updateCostEstimate()" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-xs text-[#f3ece2]">
                 <option value="gemini-3.1-flash-lite-image">NanoBanana 2 Lite (3.1 Lite) — $0.015</option>
@@ -261,27 +300,16 @@
                 <option value="openrouter-flux2">OpenRouter FLUX.2 Pro — $0.05</option>
               </select>
             </div>
-            <div class="sm:col-span-2">
-              <label class="text-[11px] text-[#9e9081]">Размер:</label>
-              <select id="nbResSelect" onchange="updateCostEstimate()" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-xs">
-                <option value="1K">1K</option>
-                <option value="2K">2K</option>
-              </select>
-            </div>
             <div class="sm:col-span-4">
-              <label class="text-[11px] text-[#9e9081]">Сохранить в версию (слот):</label>
-              <input id="nbVersionSlot" type="text" list="versionPresetsList" value="nanobanana" placeholder="nanobanana, pencil..." class="w-full mt-1 bg-[#16110d] border border-[#d99b26]/60 rounded-lg px-2.5 py-1.5 text-xs text-[#d99b26] font-semibold" />
-              <datalist id="versionPresetsList">
-                <option value="nanobanana">NanoBanana (Основная)</option>
-                <option value="flux2">FLUX.2</option>
-                <option value="puppet_macro">Кукольный Макро</option>
-                <option value="pencil">Карандаш</option>
-                <option value="japanese">Японский стиль</option>
-              </datalist>
+              <label class="text-[11px] text-[#9e9081]">Разрешение:</label>
+              <select id="nbResSelect" onchange="updateCostEstimate()" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-xs">
+                <option value="1K">1K (1024px)</option>
+                <option value="2K">2K (2048px)</option>
+              </select>
             </div>
           </div>
 
-          <!-- Выбор пресета стиля и цветокоррекции из базы -->
+          <!-- Пресеты стиля и цвета -->
           <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
             <div class="sm:col-span-5">
               <div class="flex justify-between">
@@ -300,36 +328,48 @@
             </div>
           </div>
 
-          <!-- ПОЛНЫЙ ВИДИМЫЙ И РЕДАКТИРУЕМЫЙ ПРОМПТ + ГАЛОЧКА АВТОПОДСТАНОВКИ ПОДПИСИ КАДРА -->
+          <!-- ПОЛНЫЙ ВИДИМЫЙ ПРОМПТ -->
           <div class="p-2.5 rounded-xl bg-[#16110d] border border-[#382b20] space-y-2">
             <label class="flex items-center gap-2 text-xs text-emerald-300 font-medium cursor-pointer">
               <input id="nbUseFrameCaption" type="checkbox" checked class="accent-emerald-500 w-4 h-4" />
-              Автоматически вшивать в промпт название диафильма, подпись кадра (source_text) и подсказку ракурса
+              Автоматически вшивать в промпт название диафильма, подпись кадра и подсказку ракурса
             </label>
             <input id="nbExtraDetails" type="text" oninput="rebuildVisiblePrompt()" placeholder="✏️ Общие указания к фильму (напр.: голубая чашка, Маруся в белом платье)..." class="w-full bg-[#221a14] border border-[#382b20] rounded-lg px-2.5 py-1.5 text-xs text-[#f3ece2]" />
             <div>
               <div class="flex items-center justify-between mb-1">
-                <span class="text-[11px] text-[#9e9081]">Базовый промпт стиля (можно править прямо здесь):</span>
+                <span class="text-[11px] text-[#9e9081]">Базовый промпт стиля (можно править):</span>
                 <button onclick="saveCurrentPromptAsPreset()" class="text-[11px] text-emerald-400 hover:underline">💾 Сохранить в пресеты</button>
               </div>
-              <textarea id="nbFinalPromptText" rows="4" class="w-full bg-[#221a14] border border-[#453425] rounded-lg p-2 text-[11px] text-[#f3ece2] font-mono leading-relaxed"></textarea>
+              <textarea id="nbFinalPromptText" rows="3" class="w-full bg-[#221a14] border border-[#453425] rounded-lg p-2 text-[11px] text-[#f3ece2] font-mono leading-relaxed"></textarea>
             </div>
           </div>
 
-          <!-- ДВА ЭТАЛОНА (ЦВЕТ/СТИЛЬ + ЛИЦО/ДЕТАЛИ) -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 rounded-xl bg-[#16110d] border border-[#382b20]">
-            <div>
-              <label class="text-[11px] text-[#d99b26] font-medium">🎨 Эталон №1 — Цвет и гамма (кадр №):</label>
-              <div class="flex items-center gap-2 mt-1">
-                <input id="nbRefColorFrame" type="number" min="1" placeholder="Нет (напр. 7)" class="w-24 bg-[#221a14] border border-[#382b20] rounded-lg px-2 py-1 text-xs" />
-                <label class="flex items-center gap-1 text-[11px] text-[#cfc4b6] cursor-pointer">
-                  <input id="nbAutoChainColor" type="checkbox" checked class="accent-[#d99b26]" /> Авто-фиксация цвета
-                </label>
+          <!-- ДВА ЭТАЛОНА С ВЫБОРОМ ИСТОЧНИКА (ИЗ ИИ ИЛИ ИЗ ОРИГИНАЛА) И УТОЧНЕНИЕМ ПЕРСОНАЖА -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-2.5 rounded-xl bg-[#16110d] border border-[#382b20]">
+            <div class="space-y-1">
+              <label class="text-[11px] text-[#d99b26] font-medium">🎨 Эталон №1 — Цвет и гамма:</label>
+              <div class="flex gap-1.5">
+                <input id="nbRefColorFrame" type="number" min="1" placeholder="Кадр № (напр. 7)" class="w-1/2 bg-[#221a14] border border-[#382b20] rounded-lg px-2 py-1 text-xs" />
+                <select id="nbRefColorSource" class="w-1/2 bg-[#221a14] border border-[#382b20] rounded-lg px-1.5 py-1 text-[11px] text-[#d99b26]">
+                  <option value="RESTORED">✨ Из ИИ-версии</option>
+                  <option value="ORIGINAL">📜 Из Оригинала</option>
+                </select>
               </div>
+              <label class="flex items-center gap-1 text-[11px] text-[#cfc4b6] cursor-pointer pt-0.5">
+                <input id="nbAutoChainColor" type="checkbox" checked class="accent-[#d99b26]" /> Авто-фиксация цвета серии
+              </label>
             </div>
-            <div>
-              <label class="text-[11px] text-sky-300 font-medium">👤 Эталон №2 — Лицо / Детали героя (кадр №):</label>
-              <input id="nbRefFaceFrame" type="number" min="1" placeholder="Нет (крупный план, напр. 4)" class="w-full mt-1 bg-[#221a14] border border-[#382b20] rounded-lg px-2.5 py-1 text-xs" />
+
+            <div class="space-y-1">
+              <label class="text-[11px] text-sky-300 font-medium">👤 Эталон №2 — Персонаж / Лицо:</label>
+              <div class="flex gap-1.5">
+                <input id="nbRefFaceFrame" type="number" min="1" placeholder="Кадр № (напр. 4)" class="w-1/2 bg-[#221a14] border border-[#382b20] rounded-lg px-2 py-1 text-xs" />
+                <select id="nbRefFaceSource" class="w-1/2 bg-[#221a14] border border-[#382b20] rounded-lg px-1.5 py-1 text-[11px] text-sky-300">
+                  <option value="RESTORED">✨ Из ИИ-версии</option>
+                  <option value="ORIGINAL">📜 Из Оригинала</option>
+                </select>
+              </div>
+              <input id="nbRefFaceWho" type="text" placeholder="Кто это? (напр.: девушка в белом / мальчик)" class="w-full bg-[#221a14] border border-[#382b20] rounded-lg px-2 py-1 text-[11px] text-sky-200" />
             </div>
           </div>
 
@@ -338,7 +378,7 @@
             <div>
               <label class="text-[11px] text-[#9e9081]">Какие кадры обрабатывать:</label>
               <select id="nbTargetMode" onchange="onTargetModeChange()" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-xs font-semibold text-[#d99b26]">
-                <option value="only_missing">⏭️ Только пустые в этой версии</option>
+                <option value="only_missing">⏭️ Только пустые в целевом наборе</option>
                 <option value="overwrite_all">🔄 Все кадры (переделать с 1 до конца)</option>
                 <option value="custom_range">🔢 Указать номера кадров (1..N)</option>
               </select>
@@ -354,15 +394,10 @@
             <span id="costEstimateValue" class="font-semibold text-[#d99b26]">—</span>
           </div>
 
-          <div id="aiLogBox" class="hidden p-2.5 rounded-xl bg-[#120e0a] border border-[#2e231a] text-xs font-mono text-[#d99b26] whitespace-pre-wrap max-h-44 overflow-y-auto"></div>
-
-          <div class="flex gap-2">
-            <button id="btnBatchRestore" onclick="runBatchRestoration()" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold shadow-lg">🚀 Запустить пакетную реставрацию</button>
-            <button id="btnStopBatch" onclick="stopBatchRequested=true" class="hidden px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold">⏹️ Стоп</button>
-          </div>
+          <button id="btnBatchRestore" onclick="runBatchRestoration()" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold shadow-lg">🚀 Запустить пакетную реставрацию</button>
         </div>
 
-        <!-- ПРАВАЯ КОЛОНКА: ВСЕ 13 ПОЛЕЙ МЕТАДАННЫХ В БД -->
+        <!-- ПРАВАЯ КОЛОНКА: 13 ПОЛЕЙ МЕТАДАННЫХ В БД -->
         <div class="md:col-span-5 p-4 rounded-2xl bg-[#221a14] border border-[#453425] space-y-2 text-xs">
           <h3 class="font-bold uppercase tracking-wider text-[#d99b26] mb-1">📋 Полная карточка диафильма</h3>
           <div class="grid grid-cols-2 gap-2">
@@ -376,8 +411,8 @@
               </select>
             </div>
             <div>
-              <label class="text-[10px] text-[#9e9081]">Версия по умолч.:</label>
-              <input id="editDefaultVersion" type="text" placeholder="auto, nanobanana..." class="w-full bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-[#d99b26]" />
+              <label class="text-[10px] text-[#9e9081]">Набор по умолч.:</label>
+              <input id="editDefaultVersion" type="text" placeholder="auto, nanolite1..." class="w-full bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-[#d99b26]" />
             </div>
             <div><label class="text-[10px] text-[#9e9081]">Категория:</label><input id="editFilmCategory" type="text" class="w-full bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1" /></div>
             <div><label class="text-[10px] text-[#9e9081]">Вид (Рис./Кук.):</label><input id="editFilmStyle" type="text" class="w-full bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1" /></div>
@@ -490,7 +525,7 @@
     </div>
   </div>
 
-  <!-- МОДАЛКА КЛЮЧЕЙ И ДВУХ ЖИВЫХ БАЛАНСОВ (БОНУСЫ GCP + ДЕПОЗИТ) -->
+  <!-- МОДАЛКА КЛЮЧЕЙ И БАЛАНСОВ -->
   <div id="secretsModal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
     <div class="bg-[#221a14] border border-[#453425] rounded-2xl max-w-lg w-full p-5 space-y-3 max-h-[90vh] overflow-y-auto text-xs">
       <div class="flex items-center justify-between">
@@ -519,7 +554,11 @@
     </div>
   </div>
 
-  <script src="viewer.js"></script>
-  <script src="studio.js"></script>
+  <!-- АВТОСБРОС КЕША ПРИ КАЖДОМ ОТКРЫТИИ -->
+  <script>
+    const v = Date.now();
+    document.write('<script src="viewer.js?v=' + v + '"><\/script>');
+    document.write('<script src="studio.js?v=' + v + '"><\/script>');
+  </script>
 </body>
 </html>
