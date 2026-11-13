@@ -1,4 +1,40 @@
-// STUDIO.JS v5.5 — ПОЛНАЯ ЦЕЛЬНАЯ ВЕРСИЯ
+// =========================================================================
+// STUDIO.JS v6.0 (ЧАСТЬ 1/2) — МОНИТОР ЛОГОВ, НАБОРЫ ВЕРСИЙ, ПРОМПТЫ И OCR
+// =========================================================================
+
+let executionLogHistory = [];
+
+function uiLog(shortMsg, detailMsg = "") {
+  const timeStr = new Date().toLocaleTimeString("ru-RU");
+  const box = document.getElementById("aiLogBox");
+  if (box) {
+    box.classList.remove("hidden");
+    box.innerText = shortMsg;
+  }
+  const fullEntry = `[${timeStr}] ${shortMsg.replace(/\n/g, " | ")}${detailMsg ? " -> " + detailMsg : ""}`;
+  executionLogHistory.push(fullEntry);
+  if (executionLogHistory.length > 300) executionLogHistory.shift();
+  const drawer = document.getElementById("fullLogDrawer");
+  if (drawer) {
+    drawer.innerText = executionLogHistory.join("\n");
+    drawer.scrollTop = drawer.scrollHeight;
+  }
+}
+
+function toggleFullLogView() {
+  document.getElementById("fullLogDrawer")?.classList.toggle("hidden");
+}
+
+async function copyExecutionLog() {
+  const txt = executionLogHistory.length ? executionLogHistory.join("\n") : (document.getElementById("aiLogBox")?.innerText || "Лог пуст");
+  try {
+    await navigator.clipboard.writeText(txt);
+    alert("✅ Полный лог скопирован в буфер обмена! Можете вставить его в чат.");
+  } catch (e) {
+    prompt("Скопируйте текст лога:", txt);
+  }
+}
+
 async function handleAuthClick() {
   if (isAdmin) {
     if (confirm("Выйти из режима администратора?")) {
@@ -24,7 +60,8 @@ async function tryAdminLogin(pass, showAlerts = false) {
       adminSecrets.prepay_left_ils = parseFloat(res.prepay_left_ils ?? 12.70);
       adminSecrets.total_spent_ils = parseFloat(res.total_spent_ils ?? 0.00);
       updateAdminUI(); onFilterChange();
-      if (showAlerts) alert("✅ Вы вошли в студию управления (v5.5)!");
+      uiLog("✅ Авторизация успешна (Studio v6.0)");
+      if (showAlerts) alert("✅ Вы вошли в студию управления (v6.0)!");
     } else if (showAlerts) alert("❌ Неверный пароль!");
   } catch (e) { if (showAlerts) alert("Ошибка входа: " + e.message); }
 }
@@ -35,16 +72,20 @@ function updateBudgetBadge() {
   const isVertexJson = (adminSecrets.gcp_credentials || "").trim().startsWith("{");
   const bonusStr = Number(adminSecrets.bonus_left_ils || 0).toFixed(2);
   const prepayStr = Number(adminSecrets.prepay_left_ils || 0).toFixed(2);
-  b.innerText = isVertexJson ? `🎁 Бонусы: ₪${bonusStr} (Деп: ₪${prepayStr})` : `💳 Депозит: ₪${prepayStr} (Бон: ₪${bonusStr})`;
+  b.innerText = isVertexJson
+    ? `🎁 Бонусы: ₪${bonusStr} (Деп: ₪${prepayStr})`
+    : `💳 Депозит: ₪${prepayStr} (Бон: ₪${bonusStr})`;
 }
 
 function updateAdminUI() {
   const btn = document.getElementById("loginBtn");
   btn.innerText = isAdmin ? "Выйти" : "Войти";
-  btn.className = isAdmin ? "px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#d99b26] text-[#18120e]" : "px-3 py-1.5 rounded-xl text-xs font-medium bg-[#2a2017] text-[#e6ccb2] border border-[#4a3728]";
-  ["budgetBadge", "adminPromptsBtn", "adminSettingsBtn", "adminBar", "adminPlayerControls"].forEach(id => document.getElementById(id)?.classList.toggle("hidden", !isAdmin));
-  const ocrBtn = document.getElementById("btnBatchOcr");
-  if (ocrBtn) ocrBtn.innerText = "📖 Распознать текст всех кадров (v5.5)";
+  btn.className = isAdmin
+    ? "px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#d99b26] text-[#18120e]"
+    : "px-3 py-1.5 rounded-xl text-xs font-medium bg-[#2a2017] text-[#e6ccb2] border border-[#4a3728]";
+  ["budgetBadge", "adminPromptsBtn", "adminSettingsBtn", "adminBar", "adminPlayerControls"].forEach(id => {
+    document.getElementById(id)?.classList.toggle("hidden", !isAdmin);
+  });
   if (isAdmin) { updateBudgetBadge(); renderStatusTabs(); }
 }
 
@@ -63,7 +104,10 @@ function renderStatusTabs() {
     { id: "pending", label: `💤 Не скачаны (${cPend})` },
     { id: "ALL", label: `Все в БД (${cAll})` }
   ];
-  document.getElementById("adminStatusTabs").innerHTML = tabs.map(t => `<button onclick="adminStatusFilter='${t.id}'; renderStatusTabs(); onFilterChange();" class="px-3 py-1 rounded-xl text-xs font-medium transition ${adminStatusFilter === t.id ? 'bg-[#d99b26] text-[#18120e] font-bold' : 'bg-[#16110d] text-[#cfc4b6] border border-[#382b20]'}">${t.label}</button>`).join("");
+  document.getElementById("adminStatusTabs").innerHTML = tabs.map(t => `
+    <button onclick="adminStatusFilter='${t.id}'; renderStatusTabs(); onFilterChange();"
+      class="px-3 py-1 rounded-xl text-xs font-medium transition ${adminStatusFilter === t.id ? 'bg-[#d99b26] text-[#18120e] font-bold' : 'bg-[#16110d] text-[#cfc4b6] border border-[#382b20]'}">${t.label}</button>
+  `).join("");
 }
 
 function openSecretsModal() {
@@ -105,6 +149,95 @@ async function saveSecretsToDb() {
   } catch (e) { alert("Ошибка: " + e.message); }
 }
 
+// =========================================================================
+// УПРАВЛЕНИЕ НАБОРАМИ КАДРОВ (ВЕРСИЯМИ) И КЛОНИРОВАНИЕ НАБОРОВ
+// =========================================================================
+function refreshFilmVersionSetsUI() {
+  const summaryEl = document.getElementById("existingVersionsSummary");
+  const inputSrcSel = document.getElementById("nbInputSourceSelect");
+  if (!summaryEl || !inputSrcSel || !currentFrames.length) return;
+
+  const counts = {};
+  currentFrames.forEach(fr => {
+    getFrameVersionsInfo(fr).availableRestored.forEach(v => {
+      counts[v.type] = (counts[v.type] || 0) + 1;
+    });
+  });
+
+  const keys = Object.keys(counts);
+  if (keys.length === 0) {
+    summaryEl.innerHTML = `Существующие ИИ-наборы: <span class="text-stone-500">пока нет (только Оригинал)</span>`;
+  } else {
+    summaryEl.innerHTML = `Наборы фильма (нажмите для выбора): ` + keys.map(k =>
+      `<button onclick="selectVersionSetInStudio('${k}')" class="inline-block mr-1.5 mb-1 px-2 py-0.5 rounded bg-[#2a2017] hover:bg-[#d99b26] hover:text-[#18120e] text-[#d99b26] border border-[#4a3728] text-[11px] font-bold transition">${k} (${counts[k]}/${currentFrames.length})</button>`
+    ).join("");
+  }
+
+  const prevVal = inputSrcSel.value;
+  inputSrcSel.innerHTML = `<option value="ORIGINAL">📜 Оригинальный скан пленки</option>` +
+    keys.map(k => `<option value="${k}">✨ ИИ-набор: ${k} (${counts[k]} кадр.)</option>`).join("");
+  if (prevVal && (prevVal === "ORIGINAL" || counts[prevVal])) inputSrcSel.value = prevVal;
+}
+
+function selectVersionSetInStudio(slotName) {
+  document.getElementById("nbVersionSlot").value = slotName;
+  preferredEngine = slotName;
+  setViewMode("restored");
+  renderThumbsGrid();
+  updateCostEstimate();
+  uiLog(`🗂️ Выбран активный набор кадров: [${slotName}]`);
+}
+
+// Клонирование (создание нового комбинированного набора на базе существующего + оригинала)
+async function cloneVersionSetModal() {
+  if (!currentFrames.length || !currentFilm) return;
+  const currentSlot = (document.getElementById("nbVersionSlot").value || preferredEngine || "nanobanana").trim();
+  const baseSlot = prompt(
+    `Из какого набора скопировать кадры за основу?\n(Введите имя существующего набора, например "${currentSlot}", или "ORIGINAL" для оригиналов):`,
+    currentSlot
+  );
+  if (!baseSlot) return;
+
+  const newSlot = prompt(
+    `Введите имя для НОВОГО набора кадров (например: nanolite-color-fix или nanolite2):\nВ него скопируются все кадры из [${baseSlot}], а недостающие заполнятся оригиналами. Старый набор [${baseSlot}] останется нетронутым!`,
+    `${baseSlot}-fix`
+  );
+  if (!newSlot || !newSlot.trim()) return;
+  const targetSlot = newSlot.trim();
+
+  uiLog(`📑 Создаю новый набор [${targetSlot}] на базе [${baseSlot}]...`);
+  try {
+    const rows = currentFrames.map(fr => {
+      const info = getFrameVersionsInfo(fr);
+      const found = info.availableRestored.find(v => v.type === baseSlot.trim());
+      const imgUrl = found ? found.url.split("?")[0] : info.originalUrl;
+      return {
+        frame_id: fr.id,
+        version_type: targetSlot,
+        version_label: targetSlot,
+        image_url: imgUrl,
+        meta: found?.meta ? { ...found.meta, cloned_from: baseSlot } : { cloned_from: "original" }
+      };
+    });
+
+    await sbFetch("frame_versions?on_conflict=frame_id,version_type", {
+      method: "POST",
+      headers: { "Prefer": "resolution=merge-duplicates" },
+      body: JSON.stringify(rows)
+    });
+
+    await openFilm(currentFilm.id);
+    selectVersionSetInStudio(targetSlot);
+    document.getElementById("nbInputSourceSelect").value = baseSlot.trim() !== "ORIGINAL" ? baseSlot.trim() : "ORIGINAL";
+    uiLog(`✅ Создан новый набор [${targetSlot}] (${rows.length} кадров)! Теперь вы можете редактировать в нем отдельные кадры, не затрагивая [${baseSlot}].`);
+  } catch (e) {
+    uiLog(`❌ Ошибка клонирования набора: ${e.message}`);
+  }
+}
+
+// =========================================================================
+// МЕНЕДЖЕР ГЛОБАЛЬНЫХ ПРОМПТОВ
+// =========================================================================
 async function loadPromptPresets() {
   try { promptPresets = await sbFetch("prompt_presets?select=*&order=sort_order.asc,created_at.asc") || []; } catch (e) { promptPresets = []; }
   const styleSel = document.getElementById("nbStylePresetSelect"), colorSel = document.getElementById("nbColorPresetSelect");
@@ -198,8 +331,10 @@ async function saveCurrentPromptAsPreset() {
     await loadPromptPresets(); alert(`✅ Пресет "${title}" сохранен!`);
   } catch (e) { alert("Ошибка: " + e.message); }
 }
+// =========================================================================
+// STUDIO.JS v6.0 (ЧАСТЬ 2/2) — БЕЗОТКАЗНЫЙ OCR, ПАРСЕР И ЯДРО РЕСТАВРАЦИИ
+// =========================================================================
 
-// МОДУЛЬ OCR (АВТО-ПОДБОР ТЕКСТОВОЙ МОДЕЛИ GEMINI)
 async function saveCurrentFrameTextAndHint() {
   if (!isAdmin || !currentFrames.length) return;
   const fr = currentFrames[currentFrameIdx];
@@ -208,23 +343,24 @@ async function saveCurrentFrameTextAndHint() {
   try {
     await sbFetch(`frames?id=eq.${fr.id}`, { method: "PATCH", body: JSON.stringify({ source_text, scene_hint }) });
     fr.source_text = source_text; fr.scene_hint = scene_hint;
-    updatePlayerFrame(); renderThumbsGrid(); alert("✅ Текст и подсказка сохранены!");
-  } catch (e) { alert("Ошибка: " + e.message); }
+    updatePlayerFrame(); renderThumbsGrid();
+    uiLog(`✅ Текст и подсказка кадра №${currentFrameIdx + 1} сохранены в БД`);
+  } catch (e) { uiLog(`❌ Ошибка сохранения текста: ${e.message}`); }
 }
 
 let workingOcrRoute = null;
 
-async function runGeminiVisionOcrOnFrame(origUrl, filmTitle) {
+async function runGeminiVisionOcrOnFrame(origUrl, filmTitle, humanNum) {
   const creds = (adminSecrets.gcp_credentials || "").trim();
   if (!creds) { openSecretsModal(); throw new Error("Укажите ключ в '🔑 Ключи'"); }
   const rImg = await fetch(origUrl);
-  if (!rImg.ok) throw new Error(`Оригинал недоступен (${rImg.status})`);
+  if (!rImg.ok) throw new Error(`Оригинал недоступен (HTTP ${rImg.status})`);
   const b = await rImg.blob();
   const b64 = await new Promise(res => { const fr = new FileReader(); fr.onloadend = () => res(fr.result.split(",")[1]); fr.readAsDataURL(b); });
 
-  const ocrPrompt = `Analyze this frame from the Soviet filmstrip "${filmTitle}".
-1. Read the exact Russian Cyrillic caption text at the bottom/top. Fix broken letters using Russian grammar context. If no caption, return "".
-2. Using BOTH image and Russian caption, write a concise English scene & pose description (1-2 sentences): who is depicted, facing viewer, profile, or turned away (from behind), objects/colors mentioned, time of day.
+  const ocrPrompt = `Analyze frame #${humanNum} from the Soviet filmstrip "${filmTitle}".
+1. Read the exact Russian Cyrillic caption text at the bottom/top. Fix broken letters using Russian grammar context. If there is no caption on this frame (e.g. title or technical frame), set "caption" to "".
+2. Using BOTH image and Russian caption, write a concise English scene & pose description (1-2 sentences): who is depicted, whether each character is facing viewer, in profile, or turned away (seen from behind), key objects/colors mentioned, time of day.
 Return ONLY valid JSON: {"caption": "...", "scene_hint": "..."}`;
 
   const allRoutes = [
@@ -233,35 +369,55 @@ Return ONLY valid JSON: {"caption": "...", "scene_hint": "..."}`;
     { loc: "global", model: "gemini-3.1-flash" },
     { loc: "global", model: "gemini-2.5-flash-lite" },
     { loc: "us-central1", model: "gemini-2.0-flash" },
-    { loc: "global", model: "gemini-3-flash-preview" },
     { loc: "global", model: "gemini-3.1-flash-lite-image", imgMode: true }
   ];
   const routes = workingOcrRoute ? [workingOcrRoute, ...allRoutes.filter(r => r.model !== workingOcrRoute.model || r.loc !== workingOcrRoute.loc)] : allRoutes;
   const errs = [];
 
   for (const rt of routes) {
-    const reqBody = {
-      contents: [{ role: "user", parts: [{ inlineData: { mimeType: b.type || "image/webp", data: b64 } }, { text: ocrPrompt }] }],
-      generationConfig: { temperature: 0.1, ...(rt.imgMode ? { responseModalities: ["TEXT", "IMAGE"] } : {}) }
-    };
-    let apiUrl = "", headers = { "Content-Type": "application/json" };
-    if (creds.startsWith("{")) {
-      const { token, projectId } = await getVertexAccessToken(creds);
-      const host = rt.loc === "global" ? "aiplatform.googleapis.com" : `${rt.loc}-aiplatform.googleapis.com`;
-      apiUrl = `https://${host}/v1/projects/${projectId}/locations/${rt.loc}/publishers/google/models/${rt.model}:generateContent`;
-      headers["Authorization"] = `Bearer ${token}`;
-    } else {
-      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${rt.model}:generateContent?key=${creds}`;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      if (stopBatchRequested) throw new Error("Остановлено пользователем");
+      const reqBody = {
+        contents: [{ role: "user", parts: [{ inlineData: { mimeType: b.type || "image/webp", data: b64 } }, { text: ocrPrompt }] }],
+        generationConfig: { temperature: 0.1, ...(rt.imgMode ? { responseModalities: ["TEXT", "IMAGE"] } : {}) }
+      };
+      let apiUrl = "", headers = { "Content-Type": "application/json" };
+      if (creds.startsWith("{")) {
+        const { token, projectId } = await getVertexAccessToken(creds);
+        const host = rt.loc === "global" ? "aiplatform.googleapis.com" : `${rt.loc}-aiplatform.googleapis.com`;
+        apiUrl = `https://${host}/v1/projects/${projectId}/locations/${rt.loc}/publishers/google/models/${rt.model}:generateContent`;
+        headers["Authorization"] = `Bearer ${token}`;
+      } else {
+        apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${rt.model}:generateContent?key=${creds}`;
+      }
+
+      const res = await fetch(apiUrl, { method: "POST", headers, body: JSON.stringify(reqBody) });
+      if (res.status === 429 || res.status === 503) {
+        await sleepWithCountdown(12, `⏸️ OCR кадр №${humanNum}: лимит 429 (${rt.model}), попытка ${attempt}/3`, (m) => uiLog(m));
+        continue;
+      }
+      if (!res.ok) {
+        errs.push(`${rt.model}:${res.status}`);
+        break;
+      }
+      const j = await res.json();
+      const rawTxt = (j?.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join(" ").trim();
+      const m = rawTxt.match(/\{[\s\S]*\}/);
+      if (m) {
+        try {
+          const parsed = JSON.parse(m[0]);
+          workingOcrRoute = rt;
+          return { source_text: (parsed.caption || "").trim(), scene_hint: (parsed.scene_hint || "").trim(), modelUsed: rt.model };
+        } catch (pe) {}
+      }
+      // Если модель ответила обычным текстом без JSON (например, на пустом техническом кадре)
+      if (rawTxt.length > 0) {
+        workingOcrRoute = rt;
+        return { source_text: "", scene_hint: rawTxt.slice(0, 200), modelUsed: rt.model };
+      }
+      errs.push(`${rt.model}:empty`);
+      break;
     }
-    const res = await fetch(apiUrl, { method: "POST", headers, body: JSON.stringify(reqBody) });
-    if (!res.ok) { errs.push(`${rt.model}:${res.status}`); continue; }
-    const j = await res.json();
-    const rawTxt = (j?.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join(" ").trim();
-    const m = rawTxt.match(/\{[\s\S]*\}/);
-    if (!m) { errs.push(`${rt.model}:no_json`); continue; }
-    const parsed = JSON.parse(m[0]);
-    workingOcrRoute = rt;
-    return { source_text: (parsed.caption || "").trim(), scene_hint: (parsed.scene_hint || "").trim() };
   }
   throw new Error(`OCR сбой [${errs.join(", ")}]`);
 }
@@ -269,15 +425,15 @@ Return ONLY valid JSON: {"caption": "...", "scene_hint": "..."}`;
 async function ocrSingleCurrentFrame() {
   if (!isAdmin || !currentFrames.length || !currentFilm) return;
   const fr = currentFrames[currentFrameIdx], humanNum = currentFrameIdx + 1;
-  const logBox = document.getElementById("aiLogBox");
-  logBox.classList.remove("hidden"); logBox.innerText = `📖 OCR кадра №${humanNum}...`;
+  stopBatchRequested = false;
+  uiLog(`📖 OCR кадра №${humanNum}...`);
   try {
-    const { source_text, scene_hint } = await runGeminiVisionOcrOnFrame(getFrameVersionsInfo(fr).originalUrl, currentFilm.title);
+    const { source_text, scene_hint, modelUsed } = await runGeminiVisionOcrOnFrame(getFrameVersionsInfo(fr).originalUrl, currentFilm.title, humanNum);
     await sbFetch(`frames?id=eq.${fr.id}`, { method: "PATCH", body: JSON.stringify({ source_text, scene_hint }) });
     fr.source_text = source_text; fr.scene_hint = scene_hint;
     updatePlayerFrame(); renderThumbsGrid();
-    logBox.innerText = `✅ Кадр №${humanNum} распознан!\n📖 Подпись: ${source_text || '(нет)'}\n🎭 Сцена: ${scene_hint}`;
-  } catch (e) { logBox.innerText = `❌ ${e.message}`; }
+    uiLog(`✅ Кадр №${humanNum} распознан (${modelUsed})!\n📖 Подпись: ${source_text || '(без подписи)'}\n🎭 Сцена: ${scene_hint}`);
+  } catch (e) { uiLog(`❌ Кадр №${humanNum}: ${e.message}`); }
 }
 
 async function runBatchOcrForFilm() {
@@ -286,26 +442,36 @@ async function runBatchOcrForFilm() {
   const list = missing.length > 0 ? missing : currentFrames.map((fr, idx) => ({ fr, humanNum: idx + 1 })).filter(x => x.fr.is_active !== false);
   if (!confirm(`Распознать подписи и ракурс для ${list.length} кадров "${currentFilm.title}"?`)) return;
 
-  const btn = document.getElementById("btnBatchOcr"), logBox = document.getElementById("aiLogBox");
-  btn.disabled = true; logBox.classList.remove("hidden"); await keepScreenAwake(true);
-  let okCount = 0;
+  const btn = document.getElementById("btnBatchOcr"), stopBtn = document.getElementById("btnStopBatch");
+  btn.disabled = true; stopBtn.classList.remove("hidden"); stopBatchRequested = false;
+  await keepScreenAwake(true);
+
+  let okCount = 0, skipCount = 0;
   try {
     for (let i = 0; i < list.length; i++) {
+      if (stopBatchRequested) { uiLog(`⏹️ OCR остановлен пользователем. Успешно: ${okCount}`); break; }
       const { fr, humanNum } = list[i];
-      logBox.innerText = `📖 OCR кадра №${humanNum} (${i + 1} из ${list.length})...`;
+      uiLog(`📖 OCR кадра №${humanNum} (${i + 1} из ${list.length}) | Готово: ${okCount}...`);
       try {
-        const { source_text, scene_hint } = await runGeminiVisionOcrOnFrame(getFrameVersionsInfo(fr).originalUrl, currentFilm.title);
+        const { source_text, scene_hint, modelUsed } = await runGeminiVisionOcrOnFrame(getFrameVersionsInfo(fr).originalUrl, currentFilm.title, humanNum);
         await sbFetch(`frames?id=eq.${fr.id}`, { method: "PATCH", body: JSON.stringify({ source_text, scene_hint }) });
         fr.source_text = source_text; fr.scene_hint = scene_hint; okCount++;
+        uiLog(`✅ OCR №${humanNum} (${modelUsed}): "${source_text.slice(0, 45)}..."`, scene_hint);
         updatePlayerFrame(); renderThumbsGrid();
-      } catch (e) { logBox.innerText += `\n⚠️ Кадр №${humanNum}: ${e.message}`; break; }
-      await new Promise(r => setTimeout(r, 700));
+      } catch (e) {
+        skipCount++;
+        uiLog(`⚠️ Пропущен кадр №${humanNum}: ${e.message}`);
+        // НЕ прерываем цикл (нет break!), идем к следующему кадру!
+      }
+      await new Promise(r => setTimeout(r, 1200));
     }
-    logBox.innerText += `\n✅ ГОТОВО! Распознано кадров: ${okCount}.`;
-  } finally { btn.disabled = false; await keepScreenAwake(false); }
+    uiLog(`🏁 OCR завершен! Распознано кадров: ${okCount}, пропущено: ${skipCount}.`);
+  } finally { btn.disabled = false; stopBtn.classList.add("hidden"); await keepScreenAwake(false); }
 }
 
-// ПАРСИНГ DIAFILMY.SU И СКАЧИВАНИЕ
+// =========================================================================
+// ПАРСИНГ DIAFILMY.SU И СКАЧИВАНИЕ ОРИГИНАЛОВ
+// =========================================================================
 function decodeHtmlBytes(buf) {
   const bytes = new Uint8Array(buf);
   if (new TextDecoder("ascii").decode(bytes.slice(0, 2048)).toLowerCase().includes("1251")) return new TextDecoder("windows-1251").decode(bytes);
@@ -379,7 +545,7 @@ async function keepScreenAwake(enable) {
 
 async function parseAndImportDiafilmUrl(sourceUrl, existingFilmId = null, logEl = null) {
   if (!adminSecrets.hf_token) { openSecretsModal(); throw new Error("Укажите HF_TOKEN"); }
-  const log = (m) => { if (logEl) { logEl.classList.remove("hidden"); logEl.innerText = m; } };
+  const log = (m) => { if (logEl) { logEl.classList.remove("hidden"); logEl.innerText = m; } uiLog(m); };
   await keepScreenAwake(true);
   try {
     const html = await fetchDiafilmyHtml(sourceUrl, log);
@@ -431,21 +597,19 @@ async function runImportFromUrl() {
 
 async function downloadOriginalsForCurrentFilm() {
   if (!currentFilm?.original_url) return alert("Нет original_url!");
-  const logEl = document.getElementById("aiLogBox");
-  try { await parseAndImportDiafilmUrl(currentFilm.original_url, currentFilm.id, logEl); await openFilm(currentFilm.id); }
-  catch (e) { logEl.classList.remove("hidden"); logEl.innerText = `❌ ${e.message}`; }
+  try { await parseAndImportDiafilmUrl(currentFilm.original_url, currentFilm.id, null); await openFilm(currentFilm.id); }
+  catch (e) { uiLog(`❌ ${e.message}`); }
 }
 
 async function refreshSingleFilmMetadata() {
   if (!currentFilm?.original_url) return alert("Нет ссылки на diafilmy.su!");
-  const logEl = document.getElementById("aiLogBox");
   try {
-    const html = await fetchDiafilmyHtml(currentFilm.original_url, (m) => { logEl.classList.remove("hidden"); logEl.innerText = m; });
+    const html = await fetchDiafilmyHtml(currentFilm.original_url, (m) => uiLog(m));
     const { metaPayload } = extractDiafilmyFullMetadata(html, currentFilm.original_url);
     await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify(metaPayload) });
     Object.assign(currentFilm, metaPayload); populateAdminFilmForm(currentFilm); await reloadCatalogData();
-    logEl.innerText = `✅ Метаданные обновлены!`;
-  } catch (e) { logEl.classList.remove("hidden"); logEl.innerText = `❌ ${e.message}`; }
+    uiLog(`✅ Метаданные "${currentFilm.title}" обновлены!`);
+  } catch (e) { uiLog(`❌ ${e.message}`); }
 }
 
 async function runBulkMetadataRebuild() {
@@ -506,7 +670,9 @@ async function saveFilmMeta() {
   catch (e) { alert("Ошибка: " + e.message); }
 }
 
-// ЯДРО РЕСТАВРАЦИИ
+// =========================================================================
+// ЯДРО РЕСТАВРАЦИИ: ВЫБОР ИСТОЧНИКА (ОРИГИНАЛ/ИИ) И 2 ЭТАЛОНА С ЗАЩИТОЙ
+// =========================================================================
 function onTargetModeChange() {
   const m = document.getElementById("nbTargetMode").value;
   document.getElementById("customRangeBox").classList.toggle("hidden", m !== "custom_range");
@@ -516,7 +682,7 @@ function onTargetModeChange() {
 
 function getTargetFramesForBatch() {
   const mode = document.getElementById("nbTargetMode").value;
-  const slot = (document.getElementById("nbVersionSlot").value || "nanobanana").trim();
+  const slot = (document.getElementById("nbVersionSlot").value || "nanolite1").trim();
   const indexed = currentFrames.map((fr, idx) => ({ fr, humanNum: idx + 1 })).filter(x => x.fr.is_active !== false);
   if (mode === "overwrite_all") return indexed;
   if (mode === "only_missing") return indexed.filter(x => !getFrameVersionsInfo(x.fr).availableRestored.some(v => v.type === slot));
@@ -536,6 +702,7 @@ function getUnitCostUsd() {
 }
 
 function updateCostEstimate() {
+  refreshFilmVersionSetsUI();
   const t = getTargetFramesForBatch(), usd = t.length * getUnitCostUsd();
   document.getElementById("costEstimateValue").innerText = `${t.length} кадр. ≈ $${usd.toFixed(2)} (~₪${(usd * USD_TO_ILS).toFixed(2)})`;
 }
@@ -566,12 +733,41 @@ async function getVertexAccessToken(saJsonStr) {
   return cachedTokenObj;
 }
 
+// Выбирает, откуда брать исходный кадр на вход ИИ (Оригинал или выбранный ИИ-набор)
+function getInputSourceUrlForFrame(fr) {
+  const srcMode = document.getElementById("nbInputSourceSelect")?.value || "ORIGINAL";
+  const info = getFrameVersionsInfo(fr);
+  if (srcMode === "ORIGINAL") return { url: info.originalUrl, fromLabel: "Оригинал" };
+  const found = info.availableRestored.find(v => v.type === srcMode);
+  return found ? { url: found.url, fromLabel: `ИИ:${srcMode}` } : { url: info.originalUrl, fromLabel: "Оригинал(fallback)" };
+}
+
+// Сбор двух эталонов с выбором (Из ИИ или Из Оригинала) и описанием персонажа
 function getDualReferenceUrls(autoChainUrl = null) {
   const cNum = parseInt(document.getElementById("nbRefColorFrame").value);
+  const cSrc = document.getElementById("nbRefColorSource")?.value || "RESTORED";
   const fNum = parseInt(document.getElementById("nbRefFaceFrame").value);
-  let refColorUrl = (!isNaN(cNum) && cNum >= 1 && cNum <= currentFrames.length) ? pickBestUrl(currentFrames[cNum - 1], "restored", preferredEngine).url : (document.getElementById("nbAutoChainColor").checked ? autoChainUrl : null);
-  let refFaceUrl = (!isNaN(fNum) && fNum >= 1 && fNum <= currentFrames.length) ? pickBestUrl(currentFrames[fNum - 1], "restored", preferredEngine).url : null;
-  return { refColorUrl, refFaceUrl, refColorNum: !isNaN(cNum) ? cNum : (autoChainUrl ? "Авто" : null), refFaceNum: !isNaN(fNum) ? fNum : null };
+  const fSrc = document.getElementById("nbRefFaceSource")?.value || "RESTORED";
+  const fWho = (document.getElementById("nbRefFaceWho")?.value || "").trim();
+
+  let refColorUrl = null, refFaceUrl = null;
+  if (!isNaN(cNum) && cNum >= 1 && cNum <= currentFrames.length) {
+    const cFr = currentFrames[cNum - 1];
+    refColorUrl = cSrc === "ORIGINAL" ? getFrameVersionsInfo(cFr).originalUrl : pickBestUrl(cFr, "restored", preferredEngine).url;
+  } else if (document.getElementById("nbAutoChainColor").checked && autoChainUrl) {
+    refColorUrl = autoChainUrl;
+  }
+
+  if (!isNaN(fNum) && fNum >= 1 && fNum <= currentFrames.length) {
+    const fFr = currentFrames[fNum - 1];
+    refFaceUrl = fSrc === "ORIGINAL" ? getFrameVersionsInfo(fFr).originalUrl : pickBestUrl(fFr, "restored", preferredEngine).url;
+  }
+
+  return {
+    refColorUrl, refFaceUrl, faceWho: fWho,
+    refColorNum: !isNaN(cNum) ? `№${cNum}(${cSrc === 'ORIGINAL' ? 'Ориг' : 'ИИ'})` : (autoChainUrl ? "Авто" : null),
+    refFaceNum: !isNaN(fNum) ? `№${fNum}(${fSrc === 'ORIGINAL' ? 'Ориг' : 'ИИ'}${fWho ? ':' + fWho : ''})` : null
+  };
 }
 
 function buildPromptForSpecificFrame(fr) {
@@ -585,9 +781,12 @@ function buildPromptForSpecificFrame(fr) {
 }
 
 async function callAiRestoreWithRetry(fr, refs, onRetryLog, onBeforeCooldown) {
-  const origUrl = getFrameVersionsInfo(fr).originalUrl, modelId = document.getElementById("nbModelSelect").value;
-  const resSize = document.getElementById("nbResSelect").value, baseTemp = parseFloat(document.getElementById("nbTempRange").value) || 0.35;
+  const inputSrc = getInputSourceUrlForFrame(fr);
+  const modelId = document.getElementById("nbModelSelect").value;
+  const resSize = document.getElementById("nbResSelect").value;
+  const baseTemp = parseFloat(document.getElementById("nbTempRange").value) || 0.35;
   const promptText = buildPromptForSpecificFrame(fr);
+
   const toB64 = async (u) => {
     const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const b = await r.blob(), b64 = await new Promise(res => { const rd = new FileReader(); rd.onloadend = () => res(rd.result.split(",")[1]); rd.readAsDataURL(b); });
@@ -596,10 +795,24 @@ async function callAiRestoreWithRetry(fr, refs, onRetryLog, onBeforeCooldown) {
   const creds = (adminSecrets.gcp_credentials || "").trim();
   if (!creds) { openSecretsModal(); throw new Error("Укажите ключ Gemini/Vertex"); }
   const isVertexJson = creds.startsWith("{");
-  const orig = await toB64(origUrl), parts = [];
-  if (refs.refColorUrl) { try { const rc = await toB64(refs.refColorUrl); parts.push({ text: "COLOR & STYLE PALETTE REFERENCE ONLY:" }, { inlineData: { mimeType: rc.mime, data: rc.b64 } }); } catch (e) {} }
-  if (refs.refFaceUrl) { try { const rf = await toB64(refs.refFaceUrl); parts.push({ text: "CHARACTER & FACE DETAILS REFERENCE:" }, { inlineData: { mimeType: rf.mime, data: rf.b64 } }); } catch (e) {} }
-  parts.push({ text: "SOURCE FRAME TO RESTORE:" }, { inlineData: { mimeType: orig.mime, data: orig.b64 } }, { text: promptText });
+  const orig = await toB64(inputSrc.url), parts = [];
+
+  if (refs.refColorUrl) {
+    try {
+      const rc = await toB64(refs.refColorUrl);
+      parts.push({ text: "COLOR & LIGHTING PALETTE REFERENCE ONLY (Match exact color temperature, saturation, and brush texture from this image; do NOT copy any characters or objects from it):" }, { inlineData: { mimeType: rc.mime, data: rc.b64 } });
+    } catch (e) {}
+  }
+  if (refs.refFaceUrl) {
+    try {
+      const rf = await toB64(refs.refFaceUrl);
+      const whoClause = refs.faceWho ? ` specifically for the character "${refs.faceWho}"` : "";
+      parts.push({
+        text: `CHARACTER & FACE IDENTITY REFERENCE${whoClause}: Use this reference ONLY to reconstruct facial features, hair, and clothing details for the matching character already present in the SOURCE FRAME. STRICT COMPOSITION LOCK: Never add extra people from this reference into the source frame, and keep any other characters in the source frame distinct according to the source frame.`
+      }, { inlineData: { mimeType: rf.mime, data: rf.b64 } });
+    } catch (e) {}
+  }
+  parts.push({ text: `SOURCE FRAME TO RESTORE (Input source: ${inputSrc.fromLabel} — preserve exact composition, number of people, and poses from this frame):` }, { inlineData: { mimeType: orig.mime, data: orig.b64 } }, { text: promptText });
 
   let emptyCount = 0;
   for (let attempt = 1; attempt <= 8; attempt++) {
@@ -615,7 +828,7 @@ async function callAiRestoreWithRetry(fr, refs, onRetryLog, onBeforeCooldown) {
     const res = await fetch(apiUrl, { method: "POST", headers, body: JSON.stringify(reqBody) });
     if (res.status === 429 || res.status === 503) {
       if (onBeforeCooldown) await onBeforeCooldown();
-      await sleepWithCountdown(20, `⏸️ Лимит API (попытка ${attempt}/8).`, onRetryLog); continue;
+      await sleepWithCountdown(20, `⏸️ Лимит API 429 (попытка ${attempt}/8).`, onRetryLog); continue;
     }
     if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
     const json = await res.json(), imgPart = (json?.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data);
@@ -625,26 +838,26 @@ async function callAiRestoreWithRetry(fr, refs, onRetryLog, onBeforeCooldown) {
       img.onload = () => { const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; c.getContext("2d").drawImage(img, 0, 0); c.toBlob(b => (b && b.size > 1500) ? resolve(b) : reject(new Error("Битый WebP")), "image/webp", 0.92); };
       img.onerror = reject; img.src = `data:${imgPart.inlineData.mimeType || 'image/png'};base64,${imgPart.inlineData.data}`;
     });
-    return { webpBlob, usage: json.usageMetadata || null, finalPromptUsed: promptText, wallet: isVertexJson ? "bonus" : "prepay" };
+    return { webpBlob, usage: json.usageMetadata || null, finalPromptUsed: promptText, wallet: isVertexJson ? "bonus" : "prepay", inputFrom: inputSrc.fromLabel };
   }
   throw new Error("Превышено время ожидания API");
 }
 
-function buildFrameMetaObject(refs, usage, finalPromptUsed, wallet) {
+function buildFrameMetaObject(refs, usage, finalPromptUsed, wallet, inputFrom) {
   let unitUsd = getUnitCostUsd();
   const pt = usage?.promptTokenCount || 0, ot = usage?.candidatesTokenCount || 0;
   if (pt > 0) unitUsd += (pt / 1000000) * 0.15;
   const stObj = promptPresets.find(p => p.id === document.getElementById("nbStylePresetSelect")?.value);
   const colObj = promptPresets.find(p => p.id === document.getElementById("nbColorPresetSelect")?.value);
-  return { model: document.getElementById("nbModelSelect").value, resolution: document.getElementById("nbResSelect").value, temperature: parseFloat(document.getElementById("nbTempRange").value) || 0.35, style_preset: stObj ? stObj.title : "Свой", color_preset: colObj ? colObj.title : "Нет", ref_color: refs.refColorNum || "Нет", ref_face: refs.refFaceNum || "Нет", prompt_tokens: pt, output_tokens: ot, wallet: wallet || "bonus", cost_usd: unitUsd.toFixed(4), cost_ils: (unitUsd * USD_TO_ILS).toFixed(3), date: new Date().toLocaleString("ru-RU"), prompt: finalPromptUsed };
+  return { input_source: inputFrom || "Оригинал", model: document.getElementById("nbModelSelect").value, resolution: document.getElementById("nbResSelect").value, temperature: parseFloat(document.getElementById("nbTempRange").value) || 0.35, style_preset: stObj ? stObj.title : "Свой", color_preset: colObj ? colObj.title : "Нет", ref_color: refs.refColorNum || "Нет", ref_face: refs.refFaceNum || "Нет", prompt_tokens: pt, output_tokens: ot, wallet: wallet || "bonus", cost_usd: unitUsd.toFixed(4), cost_ils: (unitUsd * USD_TO_ILS).toFixed(3), date: new Date().toLocaleString("ru-RU"), prompt: finalPromptUsed };
 }
 
-async function flushReadyFrames(queue, logBox) {
+async function flushReadyFrames(queue) {
   const validBatch = queue.splice(0, queue.length).filter(x => x?.blob instanceof Blob && x.blob.size > 1500);
   if (!validBatch.length) return 0;
-  logBox.innerText = `💾 Сохранение ${validBatch.length} кадров...`;
+  uiLog(`💾 Выгрузка ${validBatch.length} кадров в набор [${validBatch[0].slot}]...`);
   const { uploadFiles } = await import("https://esm.sh/@huggingface/hub");
-  await uploadFiles({ repo: { type: "dataset", name: HF_REPO }, accessToken: adminSecrets.hf_token, commitTitle: `Save ${validBatch.length} frames`, files: validBatch.map(x => ({ path: x.path, content: x.blob })) });
+  await uploadFiles({ repo: { type: "dataset", name: HF_REPO }, accessToken: adminSecrets.hf_token, commitTitle: `Save ${validBatch.length} frames (${validBatch[0].slot})`, files: validBatch.map(x => ({ path: x.path, content: x.blob })) });
   const ts = Date.now();
   await sbFetch("frame_versions?on_conflict=frame_id,version_type", { method: "POST", headers: { "Prefer": "resolution=merge-duplicates" }, body: JSON.stringify(validBatch.map(x => ({ frame_id: x.fr.id, version_type: x.slot, version_label: x.slot, image_url: `https://huggingface.co/datasets/${HF_REPO}/resolve/main/${x.path}`, meta: x.meta }))) });
 
@@ -663,7 +876,7 @@ async function flushReadyFrames(queue, logBox) {
     const card = document.createElement("div");
     card.className = "flex-shrink-0 w-24 cursor-pointer rounded-lg overflow-hidden border border-emerald-500/60 bg-black";
     card.onclick = () => { currentFrameIdx = x.humanNum - 1; preferredEngine = x.slot; setViewMode("restored"); };
-    card.innerHTML = `<div class="frame-aspect"><img src="${bustUrl}" class="w-full h-full object-cover" /></div><div class="text-[10px] text-center py-0.5 text-emerald-300 font-mono">№${x.humanNum}</div>`;
+    card.innerHTML = `<div class="frame-aspect"><img src="${bustUrl}" class="w-full h-full object-cover" /></div><div class="text-[10px] text-center py-0.5 text-emerald-300 font-mono">№${x.humanNum} (${x.slot})</div>`;
     liveStrip.prepend(card);
   });
   preferredEngine = validBatch[0].slot; updatePlayerFrame(); renderThumbsGrid(); updateCostEstimate();
@@ -679,75 +892,76 @@ function getRepoFolderForSlot(slot) {
 async function restoreSingleCurrentFrame() {
   if (!isAdmin || !currentFrames.length || !currentFilm) return;
   if (!adminSecrets.hf_token) return openSecretsModal();
-  const fr = currentFrames[currentFrameIdx], humanNum = currentFrameIdx + 1, slot = (document.getElementById("nbVersionSlot").value || "nanobanana").trim();
+  const fr = currentFrames[currentFrameIdx], humanNum = currentFrameIdx + 1, slot = (document.getElementById("nbVersionSlot").value || "nanolite1").trim();
   fr.source_text = document.getElementById("editFrameSourceText")?.value.trim() || fr.source_text;
   fr.scene_hint = document.getElementById("editFrameSceneHint")?.value.trim() || fr.scene_hint;
-  const refs = getDualReferenceUrls(null), logBox = document.getElementById("aiLogBox");
-  logBox.classList.remove("hidden"); logBox.innerText = `⏳ Реставрирую кадр №${humanNum} -> [${slot}]...`; stopBatchRequested = false;
+  const refs = getDualReferenceUrls(null);
+  stopBatchRequested = false;
+  uiLog(`⏳ Реставрирую кадр №${humanNum} -> в набор [${slot}]...`);
   await keepScreenAwake(true);
   try {
-    const { webpBlob, usage, finalPromptUsed, wallet } = await callAiRestoreWithRetry(fr, refs, (m) => { logBox.innerText = `🍌 Кадр №${humanNum}: ${m}`; }, null);
+    const { webpBlob, usage, finalPromptUsed, wallet, inputFrom } = await callAiRestoreWithRetry(fr, refs, (m) => uiLog(`🍌 Кадр №${humanNum}: ${m}`), null);
     const path = `${getRepoFolderForSlot(slot)}/f_${String(fr.frame_number).padStart(3, "0")}.webp`;
-    const meta = buildFrameMetaObject(refs, usage, finalPromptUsed, wallet);
-    await flushReadyFrames([{ fr, humanNum, slot, path, blob: webpBlob, meta }], logBox);
-    setViewMode("restored"); logBox.innerText = `✅ Кадр №${humanNum} готов! (~₪${meta.cost_ils})`;
-  } catch (e) { logBox.innerText = `❌ ${e.message}`; } finally { await keepScreenAwake(false); }
+    const meta = buildFrameMetaObject(refs, usage, finalPromptUsed, wallet, inputFrom);
+    await flushReadyFrames([{ fr, humanNum, slot, path, blob: webpBlob, meta }]);
+    setViewMode("restored"); uiLog(`✅ Кадр №${humanNum} сохранен в набор [${slot}]! (Исходник: ${inputFrom}, ~₪${meta.cost_ils})`);
+  } catch (e) { uiLog(`❌ Кадр №${humanNum}: ${e.message}`); } finally { await keepScreenAwake(false); }
 }
 
 async function runBatchRestoration() {
   if (!isAdmin || !currentFrames.length || !currentFilm) return;
   if (!adminSecrets.hf_token) return openSecretsModal();
   const targetItems = getTargetFramesForBatch();
-  if (!targetItems.length) return alert("Все кадры в этой версии уже готовы!");
-  const slot = (document.getElementById("nbVersionSlot").value || "nanobanana").trim();
-  const btn = document.getElementById("btnBatchRestore"), stopBtn = document.getElementById("btnStopBatch"), logBox = document.getElementById("aiLogBox");
-  btn.disabled = true; stopBtn.classList.remove("hidden"); logBox.classList.remove("hidden"); stopBatchRequested = false;
+  if (!targetItems.length) return alert("В целевом наборе все эти кадры уже есть! Выберите режим '🔄 Все кадры' или другой набор.");
+  const slot = (document.getElementById("nbVersionSlot").value || "nanolite1").trim();
+  const btn = document.getElementById("btnBatchRestore"), stopBtn = document.getElementById("btnStopBatch");
+  btn.disabled = true; stopBtn.classList.remove("hidden"); stopBatchRequested = false;
   await keepScreenAwake(true);
   const pendingQueue = []; let totalSaved = 0, autoChainAnchorUrl = null;
   try {
     for (let i = 0; i < targetItems.length; i++) {
       if (stopBatchRequested) break;
       const { fr, humanNum } = targetItems[i], refs = getDualReferenceUrls(autoChainAnchorUrl);
-      logBox.innerText = `🍌 Кадр №${humanNum} (${i + 1}/${targetItems.length}) -> [${slot}] | Сохранено: ${totalSaved} 🟢...`;
+      uiLog(`🍌 Кадр №${humanNum} (${i + 1}/${targetItems.length}) -> в набор [${slot}] | Сохранено: ${totalSaved} 🟢...`);
       try {
-        const { webpBlob, usage, finalPromptUsed, wallet } = await callAiRestoreWithRetry(fr, refs, (m) => { logBox.innerText = `🍌 Кадр №${humanNum}\n${m}`; }, async () => { totalSaved += await flushReadyFrames(pendingQueue, logBox); });
+        const { webpBlob, usage, finalPromptUsed, wallet, inputFrom } = await callAiRestoreWithRetry(fr, refs, (m) => uiLog(`🍌 Кадр №${humanNum}\n${m}`), async () => { totalSaved += await flushReadyFrames(pendingQueue); });
         if (webpBlob && !stopBatchRequested) {
           const path = `${getRepoFolderForSlot(slot)}/f_${String(fr.frame_number).padStart(3, "0")}.webp`;
-          pendingQueue.push({ fr, humanNum, slot, path, blob: webpBlob, meta: buildFrameMetaObject(refs, usage, finalPromptUsed, wallet) });
+          pendingQueue.push({ fr, humanNum, slot, path, blob: webpBlob, meta: buildFrameMetaObject(refs, usage, finalPromptUsed, wallet, inputFrom) });
           if (pendingQueue.length >= 2) {
-            totalSaved += await flushReadyFrames(pendingQueue, logBox);
+            totalSaved += await flushReadyFrames(pendingQueue);
             if (!autoChainAnchorUrl && humanNum >= 3) autoChainAnchorUrl = pickBestUrl(fr, "restored", slot).url;
           }
         }
-      } catch (e) { if (stopBatchRequested) break; logBox.innerText += `\n❌ Кадр №${humanNum}: ${e.message}`; }
-      if (!stopBatchRequested && i < targetItems.length - 1) await sleepWithCountdown(4, `✅ Кадр №${humanNum} готов!`, (m) => { logBox.innerText = m; });
+      } catch (e) { if (stopBatchRequested) break; uiLog(`❌ Кадр №${humanNum}: ${e.message}`); }
+      if (!stopBatchRequested && i < targetItems.length - 1) await sleepWithCountdown(4, `✅ Кадр №${humanNum} готов!`, (m) => uiLog(m));
     }
-    if (pendingQueue.length > 0) totalSaved += await flushReadyFrames(pendingQueue, logBox);
+    if (pendingQueue.length > 0) totalSaved += await flushReadyFrames(pendingQueue);
     if (totalSaved > 0) { await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ status: "restored_paid" }) }); currentFilm.status = "restored_paid"; await reloadCatalogData(); }
-    logBox.innerText = `🏁 ГОТОВО! Сохранено: ${totalSaved} шт.`;
-  } catch (e) { logBox.innerText = `❌ ${e.message}`; } finally { btn.disabled = false; stopBtn.classList.add("hidden"); await keepScreenAwake(false); }
+    uiLog(`🏁 ГОТОВО! Сохранено в набор [${slot}]: ${totalSaved} шт.`);
+  } catch (e) { uiLog(`❌ ${e.message}`); } finally { btn.disabled = false; stopBtn.classList.add("hidden"); await keepScreenAwake(false); }
 }
 
 async function setCurrentFrameAsCover() {
   if (!isAdmin || !currentFrames.length || !currentFilm) return;
   const fr = currentFrames[currentFrameIdx], picked = pickBestUrl(fr, "restored", preferredEngine);
   const newExtra = { ...(currentFilm.extra_data || {}), cover_frame: fr.frame_number };
-  try { await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ extra_data: newExtra }) }); currentFilm.extra_data = newExtra; filmStatsMap[currentFilm.id].coverUrl = picked.url; renderCatalog(); alert(`✅ Кадр №${currentFrameIdx + 1} сделан обложкой!`); }
-  catch (e) { alert("Ошибка: " + e.message); }
+  try { await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ extra_data: newExtra }) }); currentFilm.extra_data = newExtra; filmStatsMap[currentFilm.id].coverUrl = picked.url; renderCatalog(); uiLog(`✅ Кадр №${currentFrameIdx + 1} сделан обложкой!`); }
+  catch (e) { uiLog(`❌ ${e.message}`); }
 }
 
 async function toggleCurrentFrameActive() {
   if (!isAdmin || !currentFrames.length) return;
   const fr = currentFrames[currentFrameIdx], nextVal = fr.is_active === false ? true : false;
   try { await sbFetch(`frames?id=eq.${fr.id}`, { method: "PATCH", body: JSON.stringify({ is_active: nextVal }) }); fr.is_active = nextVal; updatePlayerFrame(); renderThumbsGrid(); }
-  catch (e) { alert("Ошибка: " + e.message); }
+  catch (e) { uiLog(`❌ ${e.message}`); }
 }
 
 async function resetCurrentFilmRestorations() {
   const slot = (document.getElementById("nbVersionSlot").value || "nanobanana").trim();
-  if (!currentFilm || !confirm(`Удалить версию [${slot}] для "${currentFilm.title}"?`)) return;
-  try { const ids = currentFrames.map(x => x.id).join(","); if (ids) await sbFetch(`frame_versions?frame_id=in.(${ids})&version_type=eq.${encodeURIComponent(slot)}`, { method: "DELETE" }); await openFilm(currentFilm.id); await reloadCatalogData(); alert(`✅ Версия [${slot}] удалена!`); }
-  catch (e) { alert("Ошибка: " + e.message); }
+  if (!currentFilm || !confirm(`Удалить набор [${slot}] для "${currentFilm.title}"?`)) return;
+  try { const ids = currentFrames.map(x => x.id).join(","); if (ids) await sbFetch(`frame_versions?frame_id=in.(${ids})&version_type=eq.${encodeURIComponent(slot)}`, { method: "DELETE" }); await openFilm(currentFilm.id); await reloadCatalogData(); uiLog(`✅ Набор [${slot}] удален!`); }
+  catch (e) { uiLog(`❌ ${e.message}`); }
 }
 
 function openCleanupModal() {
