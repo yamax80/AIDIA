@@ -597,7 +597,7 @@ function extractDiafilmyFullMetadata(html, sourceUrl) {
   const tagsRaw = ex(/Теги:\s*([^\n\r|]+)/i);
   const tags = tagsRaw ? tagsRaw.split(/[,;#]+|\s{2,}/).map(t => t.trim()).filter(Boolean) : null;
   const box = doc.querySelector('[id^="news-id-"]') || doc.querySelector('.full-news') || doc.body;
-  let rawImgs = Array.from(box.querySelectorAll("img")).map(i => i.getAttribute("src") || i.getAttribute("data-src")).filter(s => s && s.includes("/uploads/") && !s.includes("/thumbs/"));
+  let rawImgs = Array.from(box.querySelectorAll("img")).filter(i => !i.closest('a[href*=".html"]') && !i.closest(".related, .related-news")).map(i => i.getAttribute("src") || i.getAttribute("data-src")).filter(s => s && s.includes("/uploads/") && !s.includes("/thumbs/"));
   if (!rawImgs.length) rawImgs = Array.from(box.querySelectorAll("img")).map(i => i.getAttribute("src") || i.getAttribute("data-src")).filter(s => s && s.includes("/uploads/")).map(s => s.replace("/thumbs/", "/"));
   const uniqueImgs = [...new Set(rawImgs)].map(s => s.startsWith("http") ? s : "https://diafilmy.su" + s);
   const y = ex(/Год выпуска:\s*(\d{4})/i), fc = ex(/Кадров:\s*(\d+)/i);
@@ -1027,6 +1027,31 @@ async function callAiRestoreWithRetry(fr, refs, onRetryLog, onBeforeCooldown) {
   const inputSrc = getInputSourceUrlForFrame(fr), modelId = document.getElementById("nbModelSelect").value;
   const resSize = document.getElementById("nbResSelect").value, baseTemp = parseFloat(document.getElementById("nbTempRange").value) || 0.35;
   const promptText = buildPromptForSpecificFrame(fr);
+
+  if (modelId.includes("grok")) {
+    const cleanSourceUrl = inputSrc.url.split("?")[0];
+    const rpc = await sbFetch("rpc/admin_xai_restore", {
+      method: "POST",
+      body: JSON.stringify({ pass_input: adminPassword, source_image_url: cleanSourceUrl, prompt_text: promptText })
+    });
+    if (!rpc || !rpc.ok) throw new Error(`Grok API (${rpc?.status || 'сбой'}): ${rpc?.error || rpc?.body || 'ошибка'}`);
+    const parsed = JSON.parse(rpc.body || "{}");
+    const item = parsed?.data?.[0];
+    if (!item) throw new Error(`Grok не вернул картинку: ${rpc.body}`);
+    let webpBlob = null;
+    if (item.b64_json) {
+      const rawBlob = await (await fetch(`data:image/png;base64,${item.b64_json}`)).blob();
+      webpBlob = await new Promise((res, rej) => {
+        const img = new Image();
+        img.onload = () => { const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; c.getContext("2d").drawImage(img, 0, 0); c.toBlob(b => b ? res(b) : rej(new Error("WebP")), "image/webp", 0.92); };
+        img.onerror = rej; img.src = URL.createObjectURL(rawBlob);
+      });
+    } else if (item.url) {
+      webpBlob = await fetchImageAsWebpBlobSafe(item.url);
+    }
+    if (!webpBlob) throw new Error("Не удалось скачать картинку от Grok");
+    return { webpBlob, usage: null, finalPromptUsed: promptText, wallet: "prepay", inputFrom: inputSrc.fromLabel };
+  }
   const toB64 = async (u) => {
     const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const b = await r.blob(), b64 = await new Promise(res => { const rd = new FileReader(); rd.onloadend = () => res(rd.result.split(",")[1]); rd.readAsDataURL(b); });
@@ -1171,8 +1196,8 @@ async function runBatchRestoration() {
             if (!autoChainAnchorUrl && humanNum >= 3) autoChainAnchorUrl = pickBestUrl(fr, "restored", slot).url;
           }
         }
-      } catch (e) { if (stopBatchRequested) break; uiLog(`❌ Кадр №${humanNum}: ${e.message}`); }
-      if (!stopBatchRequested && i < targetItems.length - 1) await sleepWithCountdown(4, `✅ Кадр №${humanNum} готов!`, (m) => uiLog(m));
+          if (!stopBatchRequested && i < targetItems.length - 1) await sleepWithCountdown(4, `✅ Кадр №${humanNum} готов!`, (m) => uiLog(m));
+      } catch (e) { if (stopBatchRequested) break; uiLog(`❌ Кадр №${humanNum}: ${e.message}`); await new Promise(r => setTimeout(r, 2500)); }
     }
     if (pendingQueue.length > 0) totalSaved += await flushReadyFrames(pendingQueue);
     if (totalSaved > 0) { await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ status: "restored_paid" }) }); currentFilm.status = "restored_paid"; await reloadCatalogData(); }
