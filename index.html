@@ -293,6 +293,48 @@
             </button>
           </div>
 
+                    <!-- БЛОК ИИ-РЕЖИССЕРА: АВТО-АНАЛИЗ ПЛЕНКИ, ПАСПОРТ ГЕРОЕВ, ИИ-ОТК И ПЕРЕВОДЧИК -->
+          <div id="smartDirectorPanel" class="p-3 rounded-xl bg-[#16110d] border border-purple-500/40 space-y-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-1.5">
+              <span class="text-xs font-bold text-purple-300">🧠 ИИ-Режиссер: Анализ пленки, Паспорт героев и ОТК</span>
+              <div class="flex flex-wrap gap-1.5">
+                <button id="btnAutoAnalyze" onclick="runAiFilmDirectorAnalysis()" class="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold shadow">
+                  🧠 1. Авто-анализ пленки и героев
+                </button>
+                <button id="btnRunQc" onclick="runAiQualityControlAndFix()" class="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-bold shadow">
+                  🕵️ 2. ИИ-ОТК (Найти и исправить брак)
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="text-[10px] text-[#9e9081]">🎭 Паспорт постоянства героев и одежды (чтобы не менялся цвет шапки/одежды в серии):</label>
+              <textarea id="nbContinuityBible" rows="2" onchange="saveContinuityBibleToDb()" placeholder="Нажмите '🧠 Авто-анализ' или впишите цвета героев (напр.: Незнайка: голубая шляпа, оранжевая рубашка)..." class="w-full mt-0.5 bg-[#221a14] border border-purple-500/30 rounded-lg p-2 text-[11px] text-purple-200 font-mono"></textarea>
+            </div>
+            <div class="pt-2 border-t border-[#33271d] flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-1.5 flex-1 min-w-[200px]">
+                <span class="text-[11px] text-amber-300 font-semibold">🌍 Перевод на любой язык:</span>
+                <input id="translateTargetLang" type="text" list="worldLangsList" placeholder="Язык (напр. עברית, English, Deutsch...)" class="flex-1 bg-[#221a14] border border-[#382b20] rounded-lg px-2 py-1 text-xs text-[#f3ece2]" />
+                <datalist id="worldLangsList">
+                  <option value="עברית (HE)">Иврит</option>
+                  <option value="English (EN)">Английский</option>
+                  <option value="Deutsch (DE)">Немецкий</option>
+                  <option value="Français (FR)">Французский</option>
+                  <option value="Español (ES)">Испанский</option>
+                  <option value="Italiano (IT)">Итальянский</option>
+                  <option value="日本語 (JA)">Японский</option>
+                </datalist>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="flex items-center gap-1 text-[10px] text-[#cfc4b6] cursor-pointer">
+                  <input id="nbDrawTranslatedText" type="checkbox" class="accent-amber-500" /> Рисовать перевод на кадре
+                </label>
+                <button onclick="translateAllFilmCaptions()" class="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-[#18120e] text-[11px] font-bold">
+                  🌍 Перевести (4 сек)
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Модель и Разрешение -->
           <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
             <div class="sm:col-span-8">
