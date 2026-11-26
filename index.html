@@ -268,16 +268,10 @@
               <div>
                 <label class="text-[10px] text-[#9e9081]">💾 В какой набор (версию) сохранять результат:</label>
                 <div class="flex gap-1 mt-0.5">
-                  <input id="nbVersionSlot" type="text" list="versionPresetsList" value="nanolite1" placeholder="Напр.: nanolite1, color-fix..." class="flex-1 bg-[#221a14] border border-[#d99b26] rounded-lg px-2.5 py-1.5 text-xs text-[#d99b26] font-bold" />
-                  <button onclick="resetCurrentFilmRestorations()" title="Удалить этот набор" class="px-2 rounded-lg bg-red-950/60 text-red-400 text-xs">🗑️</button>
+                  <select id="nbVersionSlotSelect" onchange="onVersionSlotSelectChange(this.value)" class="flex-1 bg-[#221a14] border border-[#d99b26] rounded-lg px-2 py-1.5 text-xs text-[#d99b26] font-bold"></select>
+                  <button onclick="resetCurrentFilmRestorations()" title="Удалить выбранный набор" class="px-2 rounded-lg bg-red-950/60 text-red-400 text-xs">🗑️</button>
                 </div>
-                <datalist id="versionPresetsList">
-                  <option value="nanolite1">nanolite1</option>
-                  <option value="nanolite-color-fix">nanolite-color-fix</option>
-                  <option value="nanobanana">nanobanana</option>
-                  <option value="flux2">flux2</option>
-                  <option value="puppet_macro">puppet_macro</option>
-                </datalist>
+                <input id="nbVersionSlot" type="text" value="nanolite1" placeholder="Введите имя нового набора..." class="hidden w-full mt-1.5 bg-[#221a14] border border-emerald-500 rounded-lg px-2.5 py-1.5 text-xs text-emerald-300 font-bold" />
               </div>
             </div>
           </div>
@@ -307,7 +301,17 @@
               </div>
             </div>
             <div>
-              <label class="text-[10px] text-[#9e9081]">🎭 Паспорт постоянства героев и одежды (чтобы не менялся цвет шапки/одежды в серии):</label>
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+                <label class="flex items-center gap-1.5 text-[11px] text-purple-200 font-semibold cursor-pointer">
+                  <input id="nbUseContinuityBible" type="checkbox" class="accent-purple-500 w-3.5 h-3.5" />
+                  🎭 Подключать паспорт цветов героев (выключите, если ИИ добавляет лишних героев)
+                </label>
+                <select id="nbSceneStrictness" onchange="rebuildVisiblePrompt()" class="bg-[#221a14] border border-purple-500/40 rounded-lg px-2 py-1 text-[11px] text-amber-300 font-semibold">
+                  <option value="strict_1to1">🔒 Строго 1-в-1 (Не менять сцену — для Grok/Кукол)</option>
+                  <option value="balanced">⚖️ Стандартная реставрация</option>
+                  <option value="creative">🎨 Творческая прорисовка</option>
+                </select>
+              </div>
               <textarea id="nbContinuityBible" rows="2" onchange="saveContinuityBibleToDb()" placeholder="Нажмите '🧠 Авто-анализ' или впишите цвета героев (напр.: Незнайка: голубая шляпа, оранжевая рубашка)..." class="w-full mt-0.5 bg-[#221a14] border border-purple-500/30 rounded-lg p-2 text-[11px] text-purple-200 font-mono"></textarea>
             </div>
             <div class="pt-2 border-t border-[#33271d] flex flex-wrap items-center justify-between gap-2">
