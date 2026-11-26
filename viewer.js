@@ -336,7 +336,7 @@ function updatePlayerFrame() {
   if (hasMeta) {
     document.getElementById("frameTechPassportContent").innerText = [
       `Версия (слот): ${picked.activeVersion.type} (${picked.activeVersion.label})`,
-      `Модель: ${metaObj.model || '—'} | Разрешение: ${metaObj.resolution || '1K'} | Температура: ${metaObj.temperature ?? '—'}`,
+      `Модель: ${metaObj.model || '—'} | Разрешение: ${metaObj.resolution || '1K'} | Темп: ${metaObj.temperature ?? '—'} | Top-P: ${metaObj.top_p ?? '0.75'} | Seed: ${metaObj.seed ?? 'случ.'}`,
       `Пресет стиля: ${metaObj.style_preset || '—'} | Фильтр цвета: ${metaObj.color_preset || '—'}`,
       `Эталон цвета: ${metaObj.ref_color || 'Нет'} | Эталон лица: ${metaObj.ref_face || 'Нет'}`,
       `Токены: вх. ${metaObj.prompt_tokens || '—'}, вых. ${metaObj.output_tokens || '—'} | Списано: $${metaObj.cost_usd || '0.00'} (~₪${metaObj.cost_ils || '0.00'}, счет: ${metaObj.wallet || 'bonus'})`,
@@ -372,6 +372,13 @@ function applyPassportToStudio() {
   if (m.temperature) {
     document.getElementById("nbTempRange").value = m.temperature;
     document.getElementById("tempValLabel").innerText = m.temperature;
+  }
+  if (m.top_p && document.getElementById("nbTopPRange")) {
+    document.getElementById("nbTopPRange").value = m.top_p;
+    document.getElementById("topPValLabel").innerText = m.top_p;
+  }
+  if (m.seed !== undefined && document.getElementById("nbSeedInput")) {
+    document.getElementById("nbSeedInput").value = m.seed === "случ." ? "" : m.seed;
   }
   if (m.prompt) document.getElementById("nbFinalPromptText").value = m.prompt;
   alert("✅ Настройки и промпт этого кадра скопированы в пульт!");
