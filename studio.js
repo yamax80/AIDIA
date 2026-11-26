@@ -1080,7 +1080,7 @@ async function callAiRestoreWithRetry(fr, refs, onRetryLog, onBeforeCooldown) {
   let emptyCount = 0;
   for (let attempt = 1; attempt <= 8; attempt++) {
     if (stopBatchRequested) throw new Error("Остановлено");
-    const reqBody = { contents: [{ role: "user", parts }], generationConfig: { responseModalities: emptyCount === 0 ? ["IMAGE"] : ["TEXT", "IMAGE"], temperature: emptyCount === 0 ? baseTemp : Math.min(0.65, baseTemp + 0.1), topP: 0.95, imageConfig: { aspectRatio: "4:3", imageSize: resSize } } };
+    const reqBody = { contents: [{ role: "user", parts }], generationConfig: { responseModalities: emptyCount === 0 ? ["IMAGE"] : ["TEXT", "IMAGE"], temperature: emptyCount === 0 ? baseTemp : Math.min(0.65, baseTemp + 0.1), topP: parseFloat(document.getElementById("nbTopPRange")?.value) || 0.75, ...(document.getElementById("nbSeedInput")?.value.trim() ? { seed: parseInt(document.getElementById("nbSeedInput").value.trim()) } : {}), imageConfig: { aspectRatio: "4:3", imageSize: resSize } } };
     let apiUrl = "", headers = { "Content-Type": "application/json" };
     if (isVertexJson) {
       const { token, projectId } = await getVertexAccessToken(creds);
@@ -1112,7 +1112,7 @@ function buildFrameMetaObject(refs, usage, finalPromptUsed, wallet, inputFrom) {
   if (pt > 0) unitUsd += (pt / 1000000) * 0.15;
   const stObj = promptPresets.find(p => p.id === document.getElementById("nbStylePresetSelect")?.value);
   const colObj = promptPresets.find(p => p.id === document.getElementById("nbColorPresetSelect")?.value);
-  return { input_source: inputFrom || "Оригинал", model: document.getElementById("nbModelSelect").value, resolution: document.getElementById("nbResSelect").value, temperature: parseFloat(document.getElementById("nbTempRange").value) || 0.35, style_preset: stObj ? stObj.title : "Свой", color_preset: colObj ? colObj.title : "Нет", ref_color: refs.refColorNum || "Нет", ref_face: refs.refFaceNum || "Нет", prompt_tokens: pt, output_tokens: ot, wallet: wallet || "bonus", cost_usd: unitUsd.toFixed(4), cost_ils: (unitUsd * USD_TO_ILS).toFixed(3), date: new Date().toLocaleString("ru-RU"), prompt: finalPromptUsed };
+  return { input_source: inputFrom || "Оригинал", model: document.getElementById("nbModelSelect").value, resolution: document.getElementById("nbResSelect").value, temperature: parseFloat(document.getElementById("nbTempRange")?.value) || 0.25, top_p: parseFloat(document.getElementById("nbTopPRange")?.value) || 0.75, seed: document.getElementById("nbSeedInput")?.value.trim() || "случ.", style_preset: stObj ? stObj.title : "Свой", color_preset: colObj ? colObj.title : "Нет", ref_color: refs.refColorNum || "Нет", ref_face: refs.refFaceNum || "Нет", prompt_tokens: pt, output_tokens: ot, wallet: wallet || "bonus", cost_usd: unitUsd.toFixed(4), cost_ils: (unitUsd * USD_TO_ILS).toFixed(3), date: new Date().toLocaleString("ru-RU"), prompt: finalPromptUsed };
 }
 
 async function flushReadyFrames(queue) {
@@ -1700,3 +1700,32 @@ Return ONLY a valid JSON object with 3 fields:
     uiLog(`❌ Ошибка авто-анализа: ${e.message}`);
   } finally { if (btn) btn.disabled = false; }
 };
+
+
+// Автоматическая установка рабочих связок (Temperature + Top-P + Seed) по таблице
+function onStrictnessPresetChange(mode) {
+  const tEl = document.getElementById("nbTempRange"), tLbl = document.getElementById("tempValLabel");
+  const pEl = document.getElementById("nbTopPRange"), pLbl = document.getElementById("topPValLabel");
+  const sEl = document.getElementById("nbSeedInput");
+
+  if (mode === "strict_1to1") {
+    // Точная реставрация диафильмов: Temp 0.25, Top-P 0.75, Фикс. Seed 42
+    if (tEl) { tEl.value = 0.25; tLbl.innerText = "0.25"; }
+    if (pEl) { pEl.value = 0.75; pLbl.innerText = "0.75"; }
+    if (sEl && !sEl.value) sEl.value = "42";
+    uiLog("🔒 Режим Точной реставрации: Temp = 0.25, Top-P = 0.75, Фикс. Seed");
+  } else if (mode === "balanced") {
+    // Живая колоризация и легкая стилизация: Temp 0.55, Top-P 0.85
+    if (tEl) { tEl.value = 0.55; tLbl.innerText = "0.55"; }
+    if (pEl) { pEl.value = 0.85; pLbl.innerText = "0.85"; }
+    if (sEl && !sEl.value) sEl.value = "42";
+    uiLog("⚖️ Режим Живой колоризации: Temp = 0.55, Top-P = 0.85, Фикс. Seed");
+  } else if (mode === "creative") {
+    // Творческий поиск: Temp 0.75, Top-P 0.92, Случайный Seed
+    if (tEl) { tEl.value = 0.75; tLbl.innerText = "0.75"; }
+    if (pEl) { pEl.value = 0.92; pLbl.innerText = "0.92"; }
+    if (sEl) sEl.value = "";
+    uiLog("🎨 Режим Творческого поиска: Temp = 0.75, Top-P = 0.92, Случайный Seed");
+  }
+  rebuildVisiblePrompt();
+}
