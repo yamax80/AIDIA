@@ -156,7 +156,7 @@
       </div>
 
       <div id="mainFrameTouchArea" class="frame-aspect w-full flex items-center justify-center relative">
-        <img id="mainFrameImg" src="" alt="Кадр" class="w-full h-full object-contain" />
+        <img id="mainFrameImg" src="" alt="Кадр" class="w-full h-full object-fill" />
         <button onclick="prevFrame()" class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#1a1410]/75 hover:bg-[#1a1410] border border-[#4a3728]/70 text-[#f3ece2] flex items-center justify-center text-lg shadow-lg active:scale-95">‹</button>
         <button onclick="nextFrame()" class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-[#1a1410]/75 hover:bg-[#1a1410] border border-[#4a3728]/70 text-[#f3ece2] flex items-center justify-center text-lg shadow-lg active:scale-95">›</button>
         <button onclick="openFullscreenModal()" title="На весь экран (двойной тап — меню)" class="absolute right-3 bottom-3 w-10 h-10 rounded-full bg-[#1a1410]/80 hover:bg-[#1a1410] border border-[#4a3728] text-[#f3ece2] flex items-center justify-center shadow-lg active:scale-95">
@@ -169,7 +169,12 @@
     </div>
 
     <!-- РАСПОЗНАННЫЙ ТЕКСТ ПОДПИСИ ПОД КАДРОМ -->
-    <div id="frameCaptionBar" class="hidden mt-2 px-3.5 py-2 rounded-xl bg-[#201813] border border-[#33271d] text-xs sm:text-sm text-[#f3ece2] italic text-center"></div>
+    <div id="frameCaptionWrap" class="hidden mt-2 px-3.5 py-2 rounded-xl bg-[#201813] border border-[#33271d] flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div id="frameCaptionBar" class="text-xs sm:text-sm text-[#f3ece2] italic text-center flex-1"></div>
+      <select id="captionLangSelect" onchange="onCaptionLanguageChange(this.value)" class="bg-[#16110d] border border-[#453425] rounded-lg px-2 py-1 text-[11px] text-[#d99b26] font-semibold shrink-0">
+        <option value="RU">🌍 RU (Оригинал)</option>
+      </select>
+    </div>
 
     <!-- СТРОКА МЕТАДАННЫХ И КНОПКА ТЕХПАСПОРТА -->
     <div class="flex flex-wrap items-center justify-between gap-2 mt-2.5 px-1">
