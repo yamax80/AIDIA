@@ -1247,3 +1247,318 @@ async function executeShowcaseCleanup() {
     await reloadCatalogData(); closeCleanupModal(); alert(`✅ Готово!`);
   } catch (e) { alert("Ошибка: " + e.message); } finally { btn.disabled = false; }
 }
+
+
+// =========================================================================
+// ПАТЧ 1: ИИ-АРТ-ДИРЕКТОР, ПАСПОРТ ГЕРОЕВ (НЕЗНАЙКА), ИИ-ОТК И ПЕРЕВОДЧИК
+// =========================================================================
+let activeCaptionLang = "RU";
+
+// Перехватываем показ подписи для поддержки любого выбранного языка
+const _origUpdatePlayerFrame = window.updatePlayerFrame;
+window.updatePlayerFrame = function() {
+  _origUpdatePlayerFrame();
+  if (!currentFrames.length || !currentFilm) return;
+  const fr = currentFrames[currentFrameIdx];
+  const wrap = document.getElementById("frameCaptionWrap");
+  const capBar = document.getElementById("frameCaptionBar");
+  const langSel = document.getElementById("captionLangSelect");
+  const trMap = currentFilm.extra_data?.translations || {};
+  const availLangs = Object.keys(trMap);
+
+  if (langSel) {
+    const prev = activeCaptionLang;
+    langSel.innerHTML = `<option value="RU">🌍 RU (Оригинал)</option>` +
+      availLangs.map(l => `<option value="${l}" ${l === prev ? 'selected' : ''}>🌍 ${l}</option>`).join("");
+    if (prev !== "RU" && !trMap[prev]) activeCaptionLang = "RU";
+  }
+
+  let textToShow = fr.source_text || "";
+  if (activeCaptionLang !== "RU" && trMap[activeCaptionLang] && trMap[activeCaptionLang][String(fr.frame_number)]) {
+    textToShow = trMap[activeCaptionLang][String(fr.frame_number)];
+  }
+  if (wrap && capBar) {
+    wrap.classList.toggle("hidden", !textToShow.trim());
+    capBar.innerText = textToShow.trim() ? `«${textToShow.trim()}»` : "";
+  }
+  injectSmartDirectorToolbar();
+};
+
+function onCaptionLanguageChange(lang) {
+  activeCaptionLang = lang;
+  updatePlayerFrame();
+}
+
+// Автоматически встраивает панель ИИ-Анализа, Паспорта героев, ИИ-ОТК и Переводчика в пульт
+function injectSmartDirectorToolbar() {
+  const ocrBtn = document.getElementById("btnBatchOcr");
+  if (!ocrBtn || document.getElementById("smartDirectorPanel")) return;
+  const parentBox = ocrBtn.closest("div.p-2\.5") || ocrBtn.parentNode;
+
+  const panel = document.createElement("div");
+  panel.id = "smartDirectorPanel";
+  panel.className = "p-3 rounded-xl bg-[#16110d] border border-purple-500/40 space-y-2.5 mt-2";
+  panel.innerHTML = `
+    <div class="flex flex-wrap items-center justify-between gap-1.5">
+      <span class="text-xs font-bold text-purple-300">🧠 ИИ-Режиссер: Анализ пленки, Паспорт героев и ОТК</span>
+      <div class="flex flex-wrap gap-1.5">
+        <button id="btnAutoAnalyze" onclick="runAiFilmDirectorAnalysis()" class="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold shadow">
+          🧠 1. Авто-анализ пленки и героев
+        </button>
+        <button id="btnRunQc" onclick="runAiQualityControlAndFix()" class="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-bold shadow">
+          🕵️ 2. ИИ-ОТК (Найти и исправить брак)
+        </button>
+      </div>
+    </div>
+    <div>
+      <label class="text-[10px] text-[#9e9081]">🎭 Паспорт постоянства героев и одежды (чтобы не менялся цвет шапки/одежды в серии):</label>
+      <textarea id="nbContinuityBible" rows="2" onchange="saveContinuityBibleToDb()" placeholder="Нажмите '🧠 Авто-анализ' или впишите цвета героев (напр.: Незнайка: голубая шляпа, оранжевая рубашка)..." class="w-full mt-0.5 bg-[#221a14] border border-purple-500/30 rounded-lg p-2 text-[11px] text-purple-200 font-mono"></textarea>
+    </div>
+    <div class="pt-1 border-t border-[#33271d] flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-1.5 flex-1 min-w-[200px]">
+        <span class="text-[11px] text-amber-300 font-semibold">🌍 Перевод на любой язык:</span>
+        <input id="translateTargetLang" type="text" list="worldLangsList" placeholder="Впишите любой язык (напр. עברית, English, Deutsch...)" class="flex-1 bg-[#221a14] border border-[#382b20] rounded-lg px-2 py-1 text-xs text-[#f3ece2]" />
+        <datalist id="worldLangsList">
+          <option value="עברית (HE)">Иврит</option>
+          <option value="English (EN)">Английский</option>
+          <option value="Deutsch (DE)">Немецкий</option>
+          <option value="Français (FR)">Французский</option>
+          <option value="Español (ES)">Испанский</option>
+          <option value="Italiano (IT)">Итальянский</option>
+          <option value="日本語 (JA)">Японский</option>
+        </datalist>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="flex items-center gap-1 text-[10px] text-[#cfc4b6] cursor-pointer" title="При реставрации рисовать текст на картинке на выбранном в плеере языке">
+          <input id="nbDrawTranslatedText" type="checkbox" class="accent-amber-500" /> Рисовать перевод на кадре
+        </label>
+        <button onclick="translateAllFilmCaptions()" class="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-[#18120e] text-[11px] font-bold">
+          🌍 Перевести (4 сек)
+        </button>
+      </div>
+    </div>
+  `;
+  parentBox.parentNode.insertBefore(panel, parentBox.nextSibling);
+  if (currentFilm?.extra_data?.continuity_bible) {
+    document.getElementById("nbContinuityBible").value = currentFilm.extra_data.continuity_bible;
+  }
+}
+
+const _origPopulateAdmin = window.populateAdminFilmForm;
+window.populateAdminFilmForm = function(f) {
+  _origPopulateAdmin(f);
+  setTimeout(() => {
+    injectSmartDirectorToolbar();
+    const cb = document.getElementById("nbContinuityBible");
+    if (cb) cb.value = f.extra_data?.continuity_bible || "";
+  }, 100);
+};
+
+async function saveContinuityBibleToDb() {
+  if (!currentFilm) return;
+  const val = document.getElementById("nbContinuityBible")?.value.trim() || "";
+  const newExtra = { ...(currentFilm.extra_data || {}), continuity_bible: val };
+  await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ extra_data: newExtra }) });
+  currentFilm.extra_data = newExtra;
+  uiLog("🎭 Паспорт постоянства персонажей сохранен в карточку фильма!");
+}
+
+// Вшиваем Паспорт постоянства героев и выбранный язык перевода в промпт каждого кадра!
+const _origBuildPromptFrame = window.buildPromptForSpecificFrame;
+window.buildPromptForSpecificFrame = function(fr) {
+  let p = _origBuildPromptFrame(fr);
+  const bible = (document.getElementById("nbContinuityBible")?.value || currentFilm?.extra_data?.continuity_bible || "").trim();
+  if (bible) {
+    p = `STRICT CHARACTER & COSTUME CONTINUITY RULE (Maintain these exact colors and features across all frames): ${bible}
+
+` + p;
+  }
+  const drawTrans = document.getElementById("nbDrawTranslatedText")?.checked;
+  const trMap = currentFilm?.extra_data?.translations || {};
+  if (drawTrans && activeCaptionLang !== "RU" && trMap[activeCaptionLang]?.[String(fr.frame_number)]) {
+    const trText = trMap[activeCaptionLang][String(fr.frame_number)];
+    p += `
+
+LANGUAGE LOCALIZATION RULE: Replace the bottom Russian caption with this exact translated caption in ${activeCaptionLang}: "${trText}"`;
+  }
+  return p;
+};
+
+// Универсальный вызов текстово-зрительной модели Gemini (с подачей нескольких кадров!)
+async function callGeminiVisionMultiImage(imageUrls, promptText) {
+  const creds = (adminSecrets.gcp_credentials || "").trim();
+  if (!creds) { openSecretsModal(); throw new Error("Укажите ключ Gemini/Vertex"); }
+  const parts = [];
+  for (const u of imageUrls) {
+    try {
+      const r = await fetch(u);
+      if (r.ok) {
+        const b = await r.blob();
+        const b64 = await new Promise(res => { const rd = new FileReader(); rd.onloadend = () => res(rd.result.split(",")[1]); rd.readAsDataURL(b); });
+        parts.push({ inlineData: { mimeType: b.type || "image/webp", data: b64 } });
+      }
+    } catch (e) {}
+  }
+  parts.push({ text: promptText });
+
+  const models = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-3.1-flash"];
+  for (const m of models) {
+    let apiUrl = "", headers = { "Content-Type": "application/json" };
+    if (creds.startsWith("{")) {
+      const { token, projectId } = await getVertexAccessToken(creds);
+      apiUrl = `https://aiplatform.googleapis.com/v1/projects/${projectId}/locations/global/publishers/google/models/${m}:generateContent`;
+      headers["Authorization"] = `Bearer ${token}`;
+    } else apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${creds}`;
+
+    const res = await fetch(apiUrl, { method: "POST", headers, body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { temperature: 0.15 } }) });
+    if (!res.ok) continue;
+    const j = await res.json();
+    const rawTxt = (j?.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join(" ").trim();
+    const match = rawTxt.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+  }
+  throw new Error("Не удалось выполнить мульти-кадровый ИИ-анализ");
+}
+
+// 1. АВТО-АНАЛИЗ ПЛЕНКИ, СТИЛЯ И СОЗДАНИЕ ПАСПОРТА ПЕРСОНАЖЕЙ (ЧТОБЫ НЕ МЕНЯЛАСЬ ШАПКА)
+async function runAiFilmDirectorAnalysis() {
+  if (!currentFrames.length || !currentFilm) return;
+  const btn = document.getElementById("btnAutoAnalyze");
+  if (btn) btn.disabled = true;
+  uiLog(`🧠 ИИ-Режиссер анализирует выборку кадров и подписи диафильма "${currentFilm.title}"...`);
+  try {
+    // Берем до 5 ключевых кадров из разных частей диафильма
+    const step = Math.max(1, Math.floor(currentFrames.length / 5));
+    const sampleUrls = [];
+    for (let i = 3; i < currentFrames.length && sampleUrls.length < 5; i += step) {
+      sampleUrls.push(getFrameVersionsInfo(currentFrames[i]).originalUrl);
+    }
+    const allCaptions = currentFrames.map((f, i) => f.source_text ? `#${i+1}: ${f.source_text}` : "").filter(Boolean).slice(0, 35).join(" | ");
+
+    const prompt = `You are a Chief Film Restoration Director analyzing the vintage Soviet filmstrip "${currentFilm.title}".
+Captions from the story: ${allCaptions || "not OCR'd yet"}.
+Look at these sample frames from the filmstrip and return ONLY a valid JSON object with 3 fields:
+1. "film_diagnosis": Concise Russian summary of film degradation (e.g. кирпично-красное выцветание, фиолетовый сдвиг, царапины) and original artistic medium (гуашь, акварель, кукольный).
+2. "continuity_bible": Strict English character & costume color bible so all frames stay consistent (list main characters, their exact hat/clothing/hair colors, and key recurring room/object colors).
+3. "recommended_prompt": Complete English master restoration prompt tailored to fix this specific film damage and preserve this exact artistic technique.`;
+
+    const res = await callGeminiVisionMultiImage(sampleUrls, prompt);
+    if (res.continuity_bible) {
+      document.getElementById("nbContinuityBible").value = res.continuity_bible;
+    }
+    if (res.recommended_prompt) {
+      document.getElementById("nbFinalPromptText").value = res.recommended_prompt + "\n\nText preservation: Exactly reproduce the Russian Cyrillic caption at the bottom. Keep Russian letters identical, sharp and legible.";
+    }
+    const newExtra = { ...(currentFilm.extra_data || {}), continuity_bible: res.continuity_bible || "", film_diagnosis: res.film_diagnosis || "" };
+    await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ extra_data: newExtra }) });
+    currentFilm.extra_data = newExtra;
+    uiLog(`✅ Авто-анализ завершен!
+🔬 Диагноз: ${res.film_diagnosis}
+🎭 Паспорт героев заполнен и привязан ко всем кадрам!`);
+  } catch (e) {
+    uiLog(`❌ Ошибка авто-анализа: ${e.message}`);
+  } finally { if (btn) btn.disabled = false; }
+}
+
+// 2. ИИ-ОТК: АВТОМАТИЧЕСКАЯ ПРОВЕРКА СЕРИИ И ПЕРЕДЕЛКА БРАКОВАННЫХ КАДРОВ
+async function runAiQualityControlAndFix() {
+  if (!currentFrames.length || !currentFilm) return;
+  const slot = (document.getElementById("nbVersionSlot").value || preferredEngine || "nanolite1").trim();
+  const restoredItems = currentFrames.map((fr, idx) => ({ fr, humanNum: idx + 1 }))
+    .filter(x => x.fr.is_active !== false && getFrameVersionsInfo(x.fr).availableRestored.some(v => v.type === slot));
+
+  if (!restoredItems.length) return alert(`В наборе [${slot}] еще нет отреставрированных кадров для проверки ОТК!`);
+  if (!confirm(`Запустить ИИ-ОТК для ${restoredItems.length} готовых кадров набора [${slot}]?
+ИИ сравнит каждый кадр с оригиналом, Паспортом героев и подписью, и автоматически переделает кадры с браком!`)) return;
+
+  const btn = document.getElementById("btnRunQc"), stopBtn = document.getElementById("btnStopBatch");
+  if (btn) btn.disabled = true;
+  if (stopBtn) stopBtn.classList.remove("hidden");
+  stopBatchRequested = false;
+  await keepScreenAwake(true);
+
+  const bible = document.getElementById("nbContinuityBible")?.value || currentFilm.extra_data?.continuity_bible || "";
+  let passedCount = 0, fixedCount = 0;
+
+  try {
+    for (let i = 0; i < restoredItems.length; i++) {
+      if (stopBatchRequested) break;
+      const { fr, humanNum } = restoredItems[i];
+      const origUrl = getFrameVersionsInfo(fr).originalUrl;
+      const restVer = getFrameVersionsInfo(fr).availableRestored.find(v => v.type === slot);
+      uiLog(`🕵️ ИИ-ОТК проверяет кадр №${humanNum} (${i + 1}/${restoredItems.length}) | Прошли: ${passedCount} | Исправлено: ${fixedCount}...`);
+
+      try {
+        const qcPrompt = `Compare Image 1 (Original damaged frame) and Image 2 (AI Restored frame #${humanNum} of "${currentFilm.title}").
+Expected Russian caption: "${fr.source_text || ''}".
+Character Continuity Bible: "${bible}".
+Check strictly:
+1) Is the Russian caption in Image 2 legible and free of severe typos compared to Image 1?
+2) Do character clothing/hat colors match the Continuity Bible and composition of Image 1?
+3) Is the restoration clean of severe hallucinations?
+Return ONLY valid JSON: {"pass": true/false, "score": 1-10, "issue_ru": "кратко в чем брак на русском", "fix_prompt_en": "specific English instruction to fix this exact error on regeneration"}`;
+
+        const qc = await callGeminiVisionMultiImage([origUrl, restVer.url], qcPrompt);
+        if (qc.pass || qc.score >= 8) {
+          passedCount++;
+          uiLog(`✅ Кадр №${humanNum}: ОТК пройден (${qc.score}/10)`);
+        } else {
+          uiLog(`⚠️ Брак на кадре №${humanNum} (${qc.score}/10): ${qc.issue_ru}
+🔧 Авто-исправление кадра с новым промптом...`);
+          const oldExtra = document.getElementById("nbExtraDetails").value;
+          document.getElementById("nbExtraDetails").value = `${oldExtra} CRITICAL FIX FOR THIS FRAME: ${qc.fix_prompt_en}`.trim();
+          rebuildVisiblePrompt();
+
+          const refs = getDualReferenceUrls(null);
+          const { webpBlob, usage, finalPromptUsed, wallet, inputFrom } = await callAiRestoreWithRetry(fr, refs, (m) => uiLog(`🔧 Исправление №${humanNum}: ${m}`), null);
+          document.getElementById("nbExtraDetails").value = oldExtra;
+          rebuildVisiblePrompt();
+
+          if (webpBlob) {
+            const path = `${getRepoFolderForSlot(slot)}/f_${String(fr.frame_number).padStart(3, "0")}.webp`;
+            await flushReadyFrames([{ fr, humanNum, slot, path, blob: webpBlob, meta: buildFrameMetaObject(refs, usage, finalPromptUsed, wallet, inputFrom) }]);
+            fixedCount++;
+            uiLog(`✅ Кадр №${humanNum} автоматически переделан и исправлен по замечанию ОТК!`);
+          }
+        }
+      } catch (e) { uiLog(`⚠️ Ошибка ОТК на кадре №${humanNum}: ${e.message}`); }
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    uiLog(`🏁 ИИ-ОТК завершен! Прошли проверку с первого раза: ${passedCount}, автоматически исправлено бракованных кадров: ${fixedCount}.`);
+  } finally {
+    if (btn) btn.disabled = false;
+    if (stopBtn) stopBtn.classList.add("hidden");
+    await keepScreenAwake(false);
+  }
+}
+
+// 3. МГНОВЕННЫЙ ПЕРЕВОД ВСЕХ ПОДПИСЕЙ ДИАФИЛЬМА НА ЛЮБОЙ ЯЗЫК МИРА
+async function translateAllFilmCaptions() {
+  if (!currentFrames.length || !currentFilm) return;
+  const targetLang = (document.getElementById("translateTargetLang")?.value || "").trim();
+  if (!targetLang) return alert("Введите или выберите язык для перевода (например: עברית, English, Deutsch, Italiano)!");
+
+  const sourceMap = {};
+  currentFrames.forEach(f => { if (f.source_text && f.source_text.trim()) sourceMap[String(f.frame_number)] = f.source_text.trim(); });
+  if (!Object.keys(sourceMap).length) return alert("Сначала запустите '📖 Шаг 1: Распознать подписи всех кадров (OCR)'!");
+
+  uiLog(`🌍 Перевожу все ${Object.keys(sourceMap).length} подписей диафильма на язык [${targetLang}]...`);
+  try {
+    const prompt = `Translate these Russian filmstrip captions from "${currentFilm.title}" into ${targetLang}.
+Keep a warm, authentic children's storybook literary style, preserving character names and narrative flow across frames.
+Input JSON (frame_number -> Russian text): ${JSON.stringify(sourceMap)}
+Return ONLY a valid JSON object mapping the exact same frame_number keys to the translated text in ${targetLang}.`;
+
+    const translatedObj = await callGeminiVisionMultiImage([], prompt);
+    const curTranslations = { ...(currentFilm.extra_data?.translations || {}), [targetLang]: translatedObj };
+    const newExtra = { ...(currentFilm.extra_data || {}), translations: curTranslations };
+
+    await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ extra_data: newExtra }) });
+    currentFilm.extra_data = newExtra;
+    activeCaptionLang = targetLang;
+    updatePlayerFrame();
+    uiLog(`✅ ГОТОВО! Весь диафильм переведен на [${targetLang}] и сохранен в БД! Переключатель языка под плеером активирован.`);
+  } catch (e) {
+    uiLog(`❌ Ошибка перевода: ${e.message}`);
+  }
+}
