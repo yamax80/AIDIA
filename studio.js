@@ -1490,3 +1490,213 @@ Return ONLY a valid JSON object mapping the exact same frame_number keys to the 
     uiLog(`❌ Ошибка перевода: ${e.message}`);
   }
 }
+
+
+// =========================================================================
+// ПАТЧ UX & GROK 1:1 — ЕДИНЫЕ ИМЕНА НАБОРОВ, ВЫПАДАЮЩИЙ СПИСОК И СТРОГОСТЬ СЦЕНЫ
+// =========================================================================
+
+// 1. Делаем названия версий одинаковыми в плеере и в таблице студии!
+getFrameVersionsInfo = function(frame) {
+  const versions = frame.frame_versions || [];
+  const isRestoredUrl = (u) => u && !u.includes("/originals/");
+  const origVer = versions.find(v => v.version_type === "original") || versions.find(v => (v.image_url || "").includes("/originals/"));
+  const originalUrl = (origVer ? origVer.image_url : null) || frame.original_url || "";
+
+  const hiddenList = currentFilm?.extra_data?.hidden_versions || [];
+  const customLabels = currentFilm?.extra_data?.version_labels || {};
+  const defVer = currentFilm?.default_version;
+
+  const availableRestored = [];
+  versions.forEach(v => {
+    if (v.version_type !== "original" && isRestoredUrl(v.image_url)) {
+      const isHidden = hiddenList.includes(v.version_type);
+      if (!isAdmin && isHidden) return;
+      const cleanLabel = customLabels[v.version_type] || (v.version_label && v.version_label !== v.version_type ? `${v.version_type} (${v.version_label})` : v.version_type);
+      availableRestored.push({
+        type: v.version_type,
+        label: cleanLabel + (isAdmin && isHidden ? " 🔒" : ""),
+        url: v.image_url,
+        meta: v.meta || null,
+        isHidden
+      });
+    }
+  });
+
+  if (defVer && defVer !== "auto") {
+    availableRestored.sort((a, b) => (a.type === defVer ? -1 : b.type === defVer ? 1 : 0));
+  }
+  return { originalUrl, availableRestored };
+};
+
+// 2. Обновляем таблицу наборов и выпадающий список сохранения (выбрать существующий ИЛИ вписать новый!)
+const _oldRefreshSets = window.refreshFilmVersionSetsUI;
+window.refreshFilmVersionSetsUI = function() {
+  if (typeof _oldRefreshSets === "function") _oldRefreshSets();
+  if (!currentFrames.length || !currentFilm) return;
+
+  const counts = {};
+  const rawLabels = {};
+  currentFrames.forEach(fr => {
+    (fr.frame_versions || []).forEach(v => {
+      if (v.version_type !== "original" && v.image_url && !v.image_url.includes("/originals/")) {
+        counts[v.version_type] = (counts[v.version_type] || 0) + 1;
+        if (v.version_label) rawLabels[v.version_type] = v.version_label;
+      }
+    });
+  });
+
+  const keys = Object.keys(counts);
+  const slotSel = document.getElementById("nbVersionSlotSelect");
+  const slotInput = document.getElementById("nbVersionSlot");
+  if (!slotSel || !slotInput) return;
+
+  const currentVal = slotInput.value.trim() || "nanolite1";
+  const allOptions = [...new Set([...keys, "nanolite1", "nanobanana", "flux2", "grok"])];
+
+  slotSel.innerHTML = allOptions.map(k => {
+    const cnt = counts[k] ? ` (${counts[k]}/${currentFrames.length} кадр.)` : " (пустой)";
+    const sub = rawLabels[k] && rawLabels[k] !== k ? ` [${rawLabels[k]}]` : "";
+    return `<option value="${k}" ${k === currentVal ? 'selected' : ''}>💾 ${k}${sub}${cnt}</option>`;
+  }).join("") + `<option value="__NEW__">➕ Вписать имя нового набора...</option>`;
+
+  if (!allOptions.includes(currentVal)) {
+    slotSel.value = "__NEW__";
+    slotInput.classList.remove("hidden");
+  } else {
+    slotSel.value = currentVal;
+    slotInput.classList.add("hidden");
+  }
+
+  // Добавляем кнопку "✏️ Переименовать" в карточки существующих наборов
+  const summaryEl = document.getElementById("existingVersionsSummary");
+  if (summaryEl && keys.length > 0) {
+    keys.forEach(k => {
+      const sub = rawLabels[k] && rawLabels[k] !== k ? ` <span class="text-amber-300/80">[${rawLabels[k]}]</span>` : "";
+      summaryEl.innerHTML = summaryEl.innerHTML.replace(
+        `🎨 ${k}</span>`,
+        `🎨 ${k}${sub}</span> <button onclick="event.stopPropagation(); renameVersionSet('${k}')" title="Переименовать набор" class="ml-1 px-1.5 py-0.5 rounded bg-stone-800 hover:bg-stone-700 text-[10px] text-amber-300">✏️ Имя</button>`
+      );
+    });
+  }
+};
+
+function onVersionSlotSelectChange(val) {
+  const slotInput = document.getElementById("nbVersionSlot");
+  if (val === "__NEW__") {
+    slotInput.classList.remove("hidden");
+    slotInput.value = "";
+    slotInput.focus();
+  } else {
+    slotInput.classList.add("hidden");
+    slotInput.value = val;
+    preferredEngine = val;
+    updatePlayerFrame();
+    renderThumbsGrid();
+    updateCostEstimate();
+  }
+}
+
+async function renameVersionSet(oldName) {
+  const newName = prompt(`Введите новое понятное имя для набора [${oldName}] (например: FLUX.2 или Grok-v1):`, oldName);
+  if (!newName || !newName.trim() || newName.trim() === oldName) return;
+  const target = newName.trim();
+  uiLog(`✏️ Переименовываю набор [${oldName}] -> [${target}]...`);
+  try {
+    const ids = currentFrames.map(x => x.id).join(",");
+    await sbFetch(`frame_versions?frame_id=in.(${ids})&version_type=eq.${encodeURIComponent(oldName)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ version_type: target, version_label: target })
+    });
+    if (currentFilm.default_version === oldName) {
+      await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ default_version: target }) });
+      currentFilm.default_version = target;
+    }
+    document.getElementById("nbVersionSlot").value = target;
+    await openFilm(currentFilm.id);
+    selectVersionSetInStudio(target);
+    uiLog(`✅ Набор успешно переименован в [${target}]!`);
+  } catch (e) { uiLog(`❌ Ошибка переименования: ${e.message}`); }
+}
+
+// 3. Строгий контроль сохранения композиции 1-в-1 (чтобы Grok не менял сцену и не вставлял лишних героев!)
+window.buildPromptForSpecificFrame = function(fr) {
+  const basePrompt = document.getElementById("nbFinalPromptText").value.trim();
+  const useCaption = document.getElementById("nbUseFrameCaption")?.checked;
+  const useBible = document.getElementById("nbUseContinuityBible")?.checked;
+  const strictness = document.getElementById("nbSceneStrictness")?.value || "strict_1to1";
+
+  const parts = [];
+
+  if (strictness === "strict_1to1") {
+    parts.push("STRICT 1:1 GEOMETRY & COMPOSITION LOCK: Preserve the exact original composition, character poses, number of characters, camera angle, and background layout 100% identical to the input image. Do NOT add any new characters, animals, or objects that are not already visible in the input image. Do NOT remove or move existing characters. Only remove film dust/scratches, sharpen details, and restore clean colors.");
+  } else if (strictness === "balanced") {
+    parts.push(`Restoring frame from Soviet filmstrip "${currentFilm?.title || ''}". Keep exact character count and composition from the source image.`);
+  }
+
+  if (useBible) {
+    const bible = (document.getElementById("nbContinuityBible")?.value || currentFilm?.extra_data?.continuity_bible || "").trim();
+    if (bible) {
+      parts.push(`CONDITIONAL COLOR LOOKUP TABLE (CRITICAL: Do NOT draw or add characters from this list unless they are ALREADY physically present in the source image! If a listed character is present, use these restored colors): ${bible}`);
+    }
+  }
+
+  if (useCaption && strictness !== "strict_1to1" && fr.scene_hint?.trim()) {
+    parts.push(`Scene context clue: ${fr.scene_hint.trim()}`);
+  }
+
+  parts.push(basePrompt);
+
+  if (useCaption && fr.source_text?.trim()) {
+    parts.push(`EXACT VERIFIED RUSSIAN CAPTION TO RENDER AT THE BOTTOM: "${fr.source_text.trim()}"`);
+  }
+
+  const drawTrans = document.getElementById("nbDrawTranslatedText")?.checked;
+  const trMap = currentFilm?.extra_data?.translations || {};
+  if (drawTrans && activeCaptionLang !== "RU" && trMap[activeCaptionLang]?.[String(fr.frame_number)]) {
+    const trText = trMap[activeCaptionLang][String(fr.frame_number)];
+    parts.push(`LANGUAGE LOCALIZATION RULE: Replace the bottom Russian caption with this exact translated caption in ${activeCaptionLang}: "${trText}"`);
+  }
+
+  return parts.join("\n\n");
+};
+
+// 4. Улучшенный ИИ-Режиссер: берет за основу уже отреставрированные кадры (если есть) и прописывает ЦЕЛЕВЫЕ чистые цвета, а не дефекты скана!
+window.runAiFilmDirectorAnalysis = async function() {
+  if (!currentFrames.length || !currentFilm) return;
+  const btn = document.getElementById("btnAutoAnalyze");
+  if (btn) btn.disabled = true;
+  uiLog(`🧠 ИИ-Режиссер анализирует диафильм "${currentFilm.title}" и определяет целевые цвета после реставрации...`);
+  try {
+    const step = Math.max(1, Math.floor(currentFrames.length / 5));
+    const sampleUrls = [];
+    for (let i = 3; i < currentFrames.length && sampleUrls.length < 5; i += step) {
+      // Если у кадра уже есть удачная ИИ-версия — берем ее, чтобы видеть правильные цвета героев!
+      const bestUrl = pickBestUrl(currentFrames[i], "restored", preferredEngine).url;
+      sampleUrls.push(bestUrl);
+    }
+    const allCaptions = currentFrames.map((f, i) => f.source_text ? `#${i+1}: ${f.source_text}` : "").filter(Boolean).slice(0, 35).join(" | ");
+
+    const prompt = `You are a Chief Film Restoration Director analyzing the Soviet filmstrip "${currentFilm.title}".
+Captions from the story: ${allCaptions || "not OCR'd yet"}.
+IMPORTANT: If the sample frames are un-restored scans, they suffer from severe film dye decay (brown/red/purple color cast). Do NOT describe the faded/dirty brown colors of the damaged film! Instead, prescribe the TRUE, CLEAN, VIBRANT target colors that each character's clothing/hat and recurring objects SHOULD have after restoration!
+Return ONLY a valid JSON object with 3 fields:
+1. "film_diagnosis": Concise Russian summary of film degradation and artistic medium (гуашь, акварель, кукольный).
+2. "continuity_bible": Concise conditional color dictionary for recurring characters/objects (e.g., "IF Main Hedgehog is visible -> brown fur, red shoes; IF Mother Hedgehog is visible -> green dress, white apron").
+3. "recommended_prompt": Complete English master restoration prompt tailored to preserve 1:1 composition, clean defects, and restore this exact artistic technique.`;
+
+    const res = await callGeminiVisionMultiImage(sampleUrls, prompt);
+    if (res.continuity_bible) {
+      document.getElementById("nbContinuityBible").value = res.continuity_bible;
+    }
+    if (res.recommended_prompt) {
+      document.getElementById("nbFinalPromptText").value = res.recommended_prompt + "\n\nText preservation: Exactly reproduce the Russian Cyrillic caption at the bottom. Keep Russian letters identical, sharp and legible.";
+    }
+    const newExtra = { ...(currentFilm.extra_data || {}), continuity_bible: res.continuity_bible || "", film_diagnosis: res.film_diagnosis || "" };
+    await sbFetch(`filmstrips?id=eq.${currentFilm.id}`, { method: "PATCH", body: JSON.stringify({ extra_data: newExtra }) });
+    currentFilm.extra_data = newExtra;
+    uiLog(`✅ Авто-анализ завершен!\n🔬 Диагноз: ${res.film_diagnosis}\n🎭 Целевая таблица цветов героев обновлена!`);
+  } catch (e) {
+    uiLog(`❌ Ошибка авто-анализа: ${e.message}`);
+  } finally { if (btn) btn.disabled = false; }
+};
