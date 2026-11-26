@@ -306,7 +306,7 @@
                   <input id="nbUseContinuityBible" type="checkbox" class="accent-purple-500 w-3.5 h-3.5" />
                   🎭 Подключать паспорт цветов героев (выключите, если ИИ добавляет лишних героев)
                 </label>
-                <select id="nbSceneStrictness" onchange="rebuildVisiblePrompt()" class="bg-[#221a14] border border-purple-500/40 rounded-lg px-2 py-1 text-[11px] text-amber-300 font-semibold">
+                <select id="nbSceneStrictness" onchange="onStrictnessPresetChange(this.value)" class="bg-[#221a14] border border-purple-500/40 rounded-lg px-2 py-1 text-[11px] text-amber-300 font-semibold">
                   <option value="strict_1to1">🔒 Строго 1-в-1 (Не менять сцену — для Grok/Кукол)</option>
                   <option value="balanced">⚖️ Стандартная реставрация</option>
                   <option value="creative">🎨 Творческая прорисовка</option>
@@ -374,8 +374,27 @@
               <select id="nbColorPresetSelect" onchange="onPresetSelectChange()" class="w-full mt-1 bg-[#16110d] border border-[#382b20] rounded-lg px-2 py-1.5 text-xs"></select>
             </div>
             <div class="sm:col-span-2">
-              <label class="text-[11px] text-[#9e9081]">Темп: <span id="tempValLabel">0.35</span></label>
-              <input id="nbTempRange" type="range" min="0.1" max="0.8" step="0.05" value="0.35" oninput="document.getElementById('tempValLabel').innerText=this.value" class="w-full mt-2 accent-[#d99b26]" />
+              <label class="text-[11px] text-[#9e9081]">Темп: <span id="tempValLabel" class="text-[#d99b26] font-bold">0.25</span></label>
+              <input id="nbTempRange" type="range" min="0.1" max="0.9" step="0.05" value="0.25" oninput="document.getElementById('tempValLabel').innerText=this.value" class="w-full mt-2 accent-[#d99b26]" />
+            </div>
+          </div>
+
+          <!-- ТОНКАЯ НАСТРОЙКА ГЕНЕРАЦИИ: TOP-P (ФИЛЬТР АДЕКВАТНОСТИ) И SEED (ЗЕРНО ПОВТОРЯЕМОСТИ) -->
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 p-2.5 rounded-xl bg-[#16110d] border border-[#382b20] items-center">
+            <div class="sm:col-span-6">
+              <div class="flex justify-between text-[11px]">
+                <span class="text-[#9e9081]">🎯 Top-P (фильтр артефактов):</span>
+                <span id="topPValLabel" class="text-emerald-400 font-bold font-mono">0.75</span>
+              </div>
+              <input id="nbTopPRange" type="range" min="0.50" max="0.95" step="0.05" value="0.75" oninput="document.getElementById('topPValLabel').innerText=Number(this.value).toFixed(2)" class="w-full mt-1.5 accent-emerald-500" />
+            </div>
+            <div class="sm:col-span-6">
+              <label class="text-[11px] text-[#9e9081] block">🌱 Seed (Зерно — фикс. для серии, пусто = случ.):</label>
+              <div class="flex gap-1 mt-1">
+                <input id="nbSeedInput" type="number" value="42" placeholder="Случайный" class="flex-1 bg-[#221a14] border border-[#382b20] rounded-lg px-2.5 py-1 text-xs font-mono text-amber-300" />
+                <button onclick="document.getElementById('nbSeedInput').value = Math.floor(Math.random()*999999)" title="Сгенерировать новое случайное зерно" class="px-2.5 py-1 rounded-lg bg-[#2a2017] hover:bg-[#382b20] border border-[#4a3728] text-xs">🎲</button>
+                <button onclick="document.getElementById('nbSeedInput').value = '42'" title="Вернуть эталонный Seed 42" class="px-2 py-1 rounded-lg bg-[#221a14] border border-[#382b20] text-[10px] text-[#9e9081]">42</button>
+              </div>
             </div>
           </div>
 
